@@ -1,25 +1,25 @@
 {
-  "to": ["demo@example.org"],
-  "additional_data": {
-    "login_url": "https://app.example/login",
-    "tour_url": "https://app.example/tour"
-  },
-  "workflow_steps": [
-    {
-      "name": "welcome",
-      "delay_seconds": 0,
-      "subject": "Welcome to Acme — Start here",
-      "provider_priority": ["smtp"],
-      "retry_count": 2,
-      "retry_delay_seconds": 5
+    "to": [ "demo@example.org" ],
+    "additional_data": {
+        "login_url": "https://app.example/login",
+        "tour_url": "https://app.example/tour"
     },
-    {
-      "name": "followup",
-      "delay_seconds": 60,
-      "subject": "A quick follow-up",
-      "body": "Hi {{to}}, just checking in to see how things are going. Login: {{data.login_url}}",
-      "provider_priority": ["smtp"],
-      "retry_count": 2
-    }
-  ]
+    "workflow_steps": [
+        {
+            "name": "welcome",
+            "delay_seconds": 0,
+            "subject": "Welcome to Acme — Start here",
+            "provider_priority": [ "smtp" ],
+            "retry_count": 2,
+            "retry_delay_seconds": 5
+        },
+        {
+            "name": "followup",
+            "delay_seconds": 60,
+            "subject": "A quick follow-up",
+            "body": "Hi {{to}}, just checking in to see how things are going. Login: {{data.login_url}}",
+            "provider_priority": [ "smtp" ],
+            "retry_count": 2
+        }
+    ]
 }

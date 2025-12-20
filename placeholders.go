@@ -110,6 +110,31 @@ func applyPlaceholders(cfg *EmailConfig, mode placeholderMode) error {
 		cfg.Attachments = resolver.expandAttachments(cfg.Attachments)
 
 		if err := resolver.Err(); err != nil {
+			// Allow missing {{step}} if a workflow is present; individual steps will provide it
+			missing := resolver.MissingKeys()
+			if len(missing) == 1 && missing[0] == "step" {
+				if cfg.AdditionalData != nil {
+					if _, ok := cfg.AdditionalData["workflow_steps"]; ok {
+						log.Printf("[placeholders] deferring missing {{step}} placeholder until scheduled job runs")
+						return nil
+					}
+					if _, ok := cfg.AdditionalData["workflow_definition"]; ok {
+						log.Printf("[placeholders] deferring missing {{step}} placeholder until scheduled job runs")
+						return nil
+					}
+					if wf, ok := cfg.AdditionalData["workflow"]; ok {
+						switch wf.(type) {
+						case []any:
+							log.Printf("[placeholders] deferring missing {{step}} placeholder until scheduled job runs")
+							return nil
+						case string:
+							// legacy string-based workflows (e.g., "welcome")
+							log.Printf("[placeholders] deferring missing {{step}} placeholder until scheduled job runs")
+							return nil
+						}
+					}
+				}
+			}
 			return err
 		}
 	}
@@ -185,6 +210,19 @@ func (r *placeholderResolver) Err() error {
 	}
 	sort.Strings(keys)
 	return fmt.Errorf("unknown placeholders: %s", strings.Join(keys, ", "))
+}
+
+// MissingKeys returns the current unknown placeholder keys in a deterministic order.
+func (r *placeholderResolver) MissingKeys() []string {
+	if len(r.missing) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(r.missing))
+	for k := range r.missing {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func (r *placeholderResolver) expandString(input string) string {

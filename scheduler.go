@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 )
@@ -87,7 +88,30 @@ func (s *Scheduler) runLoop() {
 				go func() {
 					defer s.wg.Done()
 					log.Printf("scheduler: executing job %s (run_at=%s)", j.ID, j.RunAt)
-					if err := sendEmail(j.Config); err != nil {
+
+					// Make a local copy of the config and merge job meta into AdditionalData
+					cfgCopy := *j.Config
+					if cfgCopy.AdditionalData == nil {
+						cfgCopy.AdditionalData = map[string]any{}
+					}
+					for k, v := range j.Meta {
+						if strings.TrimSpace(k) == "" {
+							continue
+						}
+						cfgCopy.AdditionalData[k] = v
+					}
+
+					// Re-apply placeholders (post-finalize) so templates can consume job meta like {{step}}
+					if err := applyPlaceholders(&cfgCopy, placeholderModePostFinalize); err != nil {
+						log.Printf("scheduler: job %s placeholder error: %v", j.ID, err)
+						j.Attempts++
+						if err := s.store.Update(j); err != nil {
+							log.Printf("scheduler: cannot update job %s: %v", j.ID, err)
+						}
+						return
+					}
+
+					if err := sendEmail(&cfgCopy); err != nil {
 						log.Printf("scheduler: job %s failed: %v", j.ID, err)
 						// increase attempts and persist
 						j.Attempts++

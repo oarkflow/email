@@ -169,6 +169,7 @@ go run . --schedule template.json payload.json
 go run . --schedule template.json examples/workflow_payload.json
 ```
 
+> Note: workflows are **not** scheduled automatically unless you pass `--schedule` (so running without `--schedule` will attempt an immediate send).
 - The job store is a simple JSON file (`scheduler_store.json`) by default and is suitable for single-process execution; a pluggable store interface is provided to add DB-backed persistence later.
 
 ### Workflow schema (custom)

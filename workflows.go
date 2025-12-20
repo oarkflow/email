@@ -121,6 +121,8 @@ func ScheduleGenericWorkflow(s *Scheduler, base *EmailConfig, def any) error {
 		meta := map[string]any{"step_index": i}
 		if name, ok := stepMap["name"].(string); ok && name != "" {
 			meta["name"] = name
+			// provide a common `step` key for templates that refer to {{step}}
+			meta["step"] = name
 		}
 		job, err := s.Schedule(&cfgCopy, runAt, meta)
 		if err != nil {

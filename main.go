@@ -196,16 +196,7 @@ func main() {
 	schedule := flag.Bool("schedule", false, "schedule this email instead of sending now")
 	flag.Parse()
 
-	raw, err := loadConfigFiles(*templatePath, *payloadPath, flag.Args())
-	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
-	}
-
-	config, err := parseConfig(raw)
-	if err != nil {
-		log.Fatalf("config error: %v", err)
-	}
-
+	// If the user only asked to run the worker, start it immediately (no template required).
 	if *worker {
 		store := NewFileJobStore(*storePath)
 		s := NewScheduler(store, 5*time.Second)
@@ -216,6 +207,17 @@ func main() {
 		select {}
 	}
 
+	raw, err := loadConfigFiles(*templatePath, *payloadPath, flag.Args())
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
+
+	config, err := parseConfig(raw)
+	if err != nil {
+		log.Fatalf("config error: %v", err)
+	}
+
+	// If user explicitly asked to schedule, do so
 	if *schedule {
 		store := NewFileJobStore(*storePath)
 		s := NewScheduler(store, 5*time.Second)
@@ -263,6 +265,9 @@ func main() {
 		log.Printf("scheduled job %s to run at %s", job.ID, job.RunAt)
 		return
 	}
+
+
+
 
 	log.Printf("Sending email to %v via %s (%s)...", config.To, config.TransportDetails(), config.ProviderOrHost())
 	if err := sendEmail(config); err != nil {
@@ -388,6 +393,24 @@ func parseConfig(raw map[string]any) (*EmailConfig, error) {
 	cfg.AdditionalData = norm.leftovers()
 	if cfg.AdditionalData == nil {
 		cfg.AdditionalData = map[string]any{}
+	}
+	// Support nested wrapper keys often used by payloads such as "additional_data": {...} or "data": {...}
+	// Merge their contents up to the top-level AdditionalData map so placeholders like {{data.key}} and {{key}} work.
+	if inner, ok := cfg.AdditionalData["additional_data"]; ok {
+		if m, ok := inner.(map[string]any); ok {
+			for k, v := range m {
+				cfg.AdditionalData[k] = v
+			}
+			delete(cfg.AdditionalData, "additional_data")
+		}
+	}
+	if inner, ok := cfg.AdditionalData["data"]; ok {
+		if m, ok := inner.(map[string]any); ok {
+			for k, v := range m {
+				cfg.AdditionalData[k] = v
+			}
+			delete(cfg.AdditionalData, "data")
+		}
 	}
 
 	if err := applyPlaceholders(cfg, placeholderModeInitial); err != nil {
