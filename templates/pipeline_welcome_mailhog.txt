@@ -1,0 +1,11 @@
+Welcome to Acme!
+
+Hello {{to}},
+
+Thank you for joining Acme on {{now}} — this email is part of the "{{step}}" step in your onboarding workflow.
+
+Quick links:
+  - Log in: {{data.login_url}}
+  - Quickstart tour: {{data.tour_url}}
+
+— The Acme Product Team

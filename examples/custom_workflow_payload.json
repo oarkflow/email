@@ -1,0 +1,46 @@
+{
+    "from": "noreply@example.com",
+    "to": [ "user@example.org" ],
+    "subject": "Account activity",
+    "body": "Hello, this is the first message",
+    "provider_priority": [ "sendgrid", "smtp" ],
+    "retry_count": 2,
+    "retry_delay_seconds": 3,
+    "max_retry_delay_seconds": 30,
+
+    "workflow_steps": [
+        {
+            "name": "welcome",
+            "delay_seconds": 0,
+            "subject": "Welcome to our service",
+            "body": "Thanks for joining — we are glad to have you!",
+            "provider_priority": [ "sendgrid", "smtp" ],
+            "retry_count": 3,
+            "retry_delay_seconds": 2
+        },
+        {
+            "name": "credentials",
+            "delay_seconds": 60,
+            "subject": "Your credentials",
+            "body": "Here are your login credentials...",
+            "provider_priority": [ "smtp", "sendgrid" ],
+            "retry_count": 2
+        },
+        {
+            "name": "walkthrough",
+            "delay_seconds": 3600,
+            "subject": "A short product walkthrough",
+            "body": "This email contains a short guide to get you started.",
+            "provider_priority": [ "sendgrid" ],
+            "retry_count": 2
+        },
+        {
+            "name": "idle_reminder",
+            "delay_seconds": 604800,
+            "subject": "We miss you",
+            "body": "It's been a while — come back for new features!",
+            "provider_priority": [ "smtp", "sendgrid" ],
+            "retry_count": 1
+        }
+    ]
+}

@@ -1,0 +1,41 @@
+{
+  "to": ["newuser@example.org"],
+  "additional_data": {
+    "login_url": "https://app.example/login",
+    "tour_url": "https://app.example/tour"
+  },
+  "workflow_steps": [
+    {
+      "name": "welcome",
+      "delay_seconds": 0,
+      "subject": "Welcome to Acme — getting started",
+      "provider_priority": ["smtp"],
+      "retry_count": 3,
+      "retry_delay_seconds": 5
+    },
+    {
+      "name": "credentials",
+      "delay_seconds": 60,
+      "subject": "Your login credentials",
+      "body": "Hi {{to}},\n\nYour account is ready. Log in at {{data.login_url}}.",
+      "provider_priority": ["smtp"],
+      "retry_count": 2
+    },
+    {
+      "name": "walkthrough",
+      "delay_seconds": 3600,
+      "subject": "A short walkthrough",
+      "html_body": "<h1>Welcome</h1><p>Start with the quickstart: <a href=\"{{data.tour_url}}\">tour</a></p>",
+      "provider_priority": ["smtp"],
+      "retry_count": 2
+    },
+    {
+      "name": "idle_reminder",
+      "delay_seconds": 604800,
+      "subject": "We miss you at Acme",
+      "body": "It's been a week — come back and check out new features!",
+      "provider_priority": ["smtp"],
+      "retry_count": 1
+    }
+  ]
+}

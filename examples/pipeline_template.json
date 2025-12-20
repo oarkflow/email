@@ -1,0 +1,11 @@
+{
+    "from": "Acme <noreply@acme.example>",
+    "from_name": "Acme Product Team",
+    "to": [ "user@example.org" ],
+    "html_template": "templates/pipeline_welcome.html",
+    "text_template": "templates/pipeline_welcome.txt",
+    "provider_priority": [ "sendgrid", "smtp" ],
+    "retries": 3,
+    "retry_delay": "5s",
+    "timeout": "15s"
+}

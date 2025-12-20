@@ -117,7 +117,23 @@ cd examples/email
 go run . config.mailhog.json
 ```
 
-Open `http://localhost:8025` to inspect captured messages. To exercise other templates or payload combinations against MailHog, override just the transport fields in your payload JSON (e.g., set `"host": "localhost"`, `"port": 1025`, `"use_tls": false`, and clear credentials). This keeps the body/placeholder coverage identical while routing everything to the local inbox.
+Open `http://localhost:8025` to inspect captured messages.
+
+### Demo: run the pipeline workflow against MailHog
+
+You can run the full onboarding pipeline (4-step workflow) using the MailHog-ready example files included in `examples/`.
+
+```bash
+# 1) schedule the pipeline workflow (stores jobs in scheduler_store.json)
+go run . --schedule --store scheduler_store.json --template examples/pipeline_template_mailhog.json --payload examples/pipeline_payload_mailhog.json
+
+# 2) start a worker that will execute scheduled jobs (in a separate terminal)
+go run . --worker --store scheduler_store.json
+
+# 3) visit MailHog UI to see messages: http://localhost:8025
+```
+
+To exercise other templates or payload combinations against MailHog, override just the transport fields in your payload JSON (e.g., set `"host": "localhost"`, `"port": 1025`, `"use_tls": false`, and clear credentials). This keeps the body/placeholder coverage identical while routing everything to the local inbox.
 
 ### What's New
 
@@ -149,6 +165,42 @@ go run . --schedule template.json examples/workflow_payload.json
 ```
 
 - The job store is a simple JSON file (`scheduler_store.json`) by default and is suitable for single-process execution; a pluggable store interface is provided to add DB-backed persistence later.
+
+### Workflow schema (custom)
+
+You can define arbitrary workflows by adding a `workflow_steps` array to your payload. Each step is an object with optional overrides for that step. Example step fields:
+
+- `name` (string): a human name for the step
+- `delay_seconds` (number): schedule the step `delay_seconds` after scheduling time
+- `run_at` (RFC3339 string): schedule at an exact time instead of using `delay_seconds`
+- `subject`, `body`, `html_body`: message overrides for the step
+- `to`, `cc`, `bcc`: recipient overrides
+- `provider_priority`: array of provider names to attempt for that step, in order
+- `retry_count`, `retry_delay_seconds`, `max_retry_delay_seconds`: retry/backoff settings for the step
+
+Example usage:
+
+```bash
+# schedule a custom workflow from a payload file
+# 1) schedule the example pipeline (uses `examples/pipeline_template.json` + `examples/pipeline_payload.json`)
+go run . --schedule --store scheduler_store.json --template examples/pipeline_template.json --payload examples/pipeline_payload.json
+
+# 2) start a worker that will execute scheduled jobs (persisted to scheduler_store.json)
+go run . --worker --store scheduler_store.json
+
+# 3) inspect scheduled jobs by viewing `scheduler_store.json` (it is plain JSON)
+cat scheduler_store.json | jq .
+```
+
+For the example files added above:
+
+- `examples/pipeline_template.json` is the base template (contains `html_template` / `text_template` pointing to files in `templates/`).
+- `examples/pipeline_payload.json` contains `workflow_steps` with four onboarding steps (welcome, credentials, walkthrough, idle_reminder) demonstrating delays, per-step retry and provider priority overrides.
+
+Notes:
+
+- Step overrides may set `subject`, `body`, `html_body`, `to`, `provider_priority`, and retry/backoff settings (`retry_count`, `retry_delay_seconds`, `max_retry_delay_seconds`).
+- When scheduling large numbers of jobs or for production use, swap `FileJobStore` for a durable DB-backed store (pluggable `JobStore` interface).
 
 ## Custom Payloads
 

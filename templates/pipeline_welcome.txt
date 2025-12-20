@@ -1,0 +1,12 @@
+Welcome to Acme!
+
+Hi there,
+
+Thanks for joining Acme. We're excited to have you on board.
+
+Getting started:
+  1) Log in to your account
+  2) Complete your profile
+  3) Try the quickstart tour
+
+— The Acme Product Team

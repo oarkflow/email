@@ -1,0 +1,42 @@
+{
+    "to": [ "newuser@example.org" ],
+    "workflow_steps": [
+        {
+            "name": "welcome",
+            "delay_seconds": 0,
+            "subject": "Welcome to Acme — getting started",
+            "//": "This step uses the base templates (html/text) referenced by the template file",
+            "provider_priority": [ "sendgrid", "smtp" ],
+            "retry_count": 3,
+            "retry_delay_seconds": 5
+        },
+
+        {
+            "name": "credentials",
+            "delay_seconds": 60,
+            "subject": "Your login credentials",
+            "body": "Hi! Your login details:\n\nUser: {{to}}\nPassword: <secret>",
+            "provider_priority": [ "smtp", "sendgrid" ],
+            "retry_count": 4,
+            "retry_delay_seconds": 10
+        },
+
+        {
+            "name": "walkthrough",
+            "delay_seconds": 3600,
+            "subject": "A short walkthrough",
+            "html_body": "<h1>Welcome</h1><p>Here is a short guide to get started.</p>",
+            "provider_priority": [ "sendgrid" ],
+            "retry_count": 2
+        },
+
+        {
+            "name": "idle_reminder",
+            "delay_seconds": 604800,
+            "subject": "We miss you at Acme",
+            "body": "It's been a week — come back and check out new features!",
+            "provider_priority": [ "smtp", "sendgrid" ],
+            "retry_count": 1
+        }
+    ]
+}
