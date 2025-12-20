@@ -1,0 +1,9 @@
+{
+  "from": "noreply@example.com",
+  "to": ["user@example.org"],
+  "subject": "Welcome to our service",
+  "body": "Hello!",
+  "workflow": "welcome",
+  "provider_priority": ["smtp", "sendgrid", "mailgun"],
+  "delay_seconds": 0
+}

@@ -27,7 +27,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -88,6 +87,10 @@ type EmailConfig struct {
 	Timeout             time.Duration
 	RetryCount          int
 	RetryDelay          time.Duration
+	// MaxRetryDelay caps exponential backoff delay (optional).
+	MaxRetryDelay time.Duration
+	// ProviderPriority is an ordered list of provider names to attempt in case of failures.
+	ProviderPriority []string
 }
 
 // Attachment describes a file to be included with the email.
@@ -105,173 +108,6 @@ type encodedAttachment struct {
 	Content   string
 	Inline    bool
 	ContentID string
-}
-
-// ProviderSetting captures smart defaults for known providers.
-type ProviderSetting struct {
-	Host      string
-	Port      int
-	UseTLS    bool
-	UseSSL    bool
-	Transport string
-	Endpoint  string
-}
-
-type payloadBuilder func(*EmailConfig) (any, string, error)
-
-type httpProviderProfile struct {
-	Endpoint      string
-	Method        string
-	ContentType   string
-	PayloadFormat string
-	Headers       map[string]string
-}
-
-type placeholderMode int
-
-const (
-	placeholderModeInitial placeholderMode = iota
-	placeholderModePostFinalize
-)
-
-var providerDefaults = map[string]ProviderSetting{
-	"gmail":        {Host: "smtp.gmail.com", Port: 587, UseTLS: true},
-	"google":       {Host: "smtp.gmail.com", Port: 587, UseTLS: true},
-	"outlook":      {Host: "smtp-mail.outlook.com", Port: 587, UseTLS: true},
-	"office365":    {Host: "smtp.office365.com", Port: 587, UseTLS: true},
-	"yahoo":        {Host: "smtp.mail.yahoo.com", Port: 587, UseTLS: true},
-	"zoho":         {Host: "smtp.zoho.com", Port: 587, UseTLS: true},
-	"mailtrap":     {Host: "smtp.mailtrap.io", Port: 2525, UseTLS: true},
-	"sendgrid":     {Host: "smtp.sendgrid.net", Port: 587, UseTLS: true},
-	"mailgun":      {Host: "smtp.mailgun.org", Port: 587, UseTLS: true},
-	"postmark":     {Host: "smtp.postmarkapp.com", Port: 587, UseTLS: true},
-	"sparkpost":    {Host: "smtp.sparkpostmail.com", Port: 587, UseTLS: true},
-	"amazon_ses":   {Host: "email-smtp.us-east-1.amazonaws.com", Port: 587, UseTLS: true},
-	"amazon":       {Host: "email-smtp.us-east-1.amazonaws.com", Port: 587, UseTLS: true},
-	"aws_ses":      {Transport: "http", Endpoint: "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails"},
-	"ses":          {Transport: "http", Endpoint: "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails"},
-	"fastmail":     {Host: "smtp.fastmail.com", Port: 465, UseSSL: true},
-	"protonmail":   {Transport: "http", Endpoint: "https://api.protonmail.ch"},
-	"sendinblue":   {Host: "smtp-relay.sendinblue.com", Port: 587, UseTLS: true},
-	"brevo":        {Host: "smtp-relay.brevo.com", Port: 587, UseTLS: true},
-	"mailjet":      {Host: "in-v3.mailjet.com", Port: 587, UseTLS: true},
-	"elasticemail": {Host: "smtp.elasticemail.com", Port: 2525, UseTLS: true},
-}
-
-var httpProviderProfiles = map[string]httpProviderProfile{
-	"sendgrid": {
-		Endpoint:      "https://api.sendgrid.com/v3/mail/send",
-		Method:        http.MethodPost,
-		ContentType:   "application/json",
-		PayloadFormat: "sendgrid",
-	},
-	"ses": {
-		Endpoint:      "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails",
-		Method:        http.MethodPost,
-		ContentType:   "application/json",
-		PayloadFormat: "sesv2",
-	},
-	"aws_ses": {
-		Endpoint:      "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails",
-		Method:        http.MethodPost,
-		ContentType:   "application/json",
-		PayloadFormat: "sesv2",
-	},
-	"amazon_ses": {
-		Endpoint:      "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails",
-		Method:        http.MethodPost,
-		ContentType:   "application/json",
-		PayloadFormat: "sesv2",
-	},
-	"brevo": {
-		Endpoint:      "https://api.brevo.com/v3/smtp/email",
-		Method:        http.MethodPost,
-		ContentType:   "application/json",
-		PayloadFormat: "brevo",
-		Headers: map[string]string{
-			"accept": "application/json",
-		},
-	},
-	"sendinblue": {
-		Endpoint:      "https://api.sendinblue.com/v3/smtp/email",
-		Method:        http.MethodPost,
-		ContentType:   "application/json",
-		PayloadFormat: "brevo",
-		Headers: map[string]string{
-			"accept": "application/json",
-		},
-	},
-	"mailtrap": {
-		Endpoint:      "https://send.api.mailtrap.io/api/send",
-		Method:        http.MethodPost,
-		ContentType:   "application/json",
-		PayloadFormat: "mailtrap",
-	},
-	"postmark": {
-		Endpoint:      "https://api.postmarkapp.com/email",
-		Method:        http.MethodPost,
-		ContentType:   "application/json",
-		PayloadFormat: "postmark",
-	},
-	"sparkpost": {
-		Endpoint:      "https://api.sparkpost.com/api/v1/transmissions",
-		Method:        http.MethodPost,
-		ContentType:   "application/json",
-		PayloadFormat: "sparkpost",
-	},
-	"resend": {
-		Endpoint:      "https://api.resend.com/emails",
-		Method:        http.MethodPost,
-		ContentType:   "application/json",
-		PayloadFormat: "resend",
-	},
-	"mailgun": {
-		Endpoint:      "https://api.mailgun.net/v3",
-		Method:        http.MethodPost,
-		ContentType:   "application/x-www-form-urlencoded",
-		PayloadFormat: "mailgun",
-	},
-}
-
-var httpPayloadBuilders = map[string]payloadBuilder{
-	"sendgrid":   buildSendGridPayload,
-	"brevo":      buildBrevoPayload,
-	"sendinblue": buildBrevoPayload,
-	"mailtrap":   buildMailtrapPayload,
-	"sesv2":      buildSESPayload,
-	"ses":        buildSESPayload,
-	"aws_ses":    buildSESPayload,
-	"amazon_ses": buildSESPayload,
-	"postmark":   buildPostmarkPayload,
-	"sparkpost":  buildSparkPostPayload,
-	"resend":     buildResendPayload,
-	"mailgun":    buildMailgunPayload,
-}
-
-var (
-	httpClientMu    sync.Mutex
-	httpClientCache = map[string]*http.Client{}
-)
-
-var emailDomainMap = map[string]string{
-	"gmail.com":      "gmail",
-	"googlemail.com": "gmail",
-	"outlook.com":    "outlook",
-	"hotmail.com":    "outlook",
-	"live.com":       "outlook",
-	"office365.com":  "office365",
-	"yahoo.com":      "yahoo",
-	"yandex.com":     "mailgun",
-	"zoho.com":       "zoho",
-	"pm.me":          "protonmail",
-	"protonmail.com": "protonmail",
-	"fastmail.com":   "fastmail",
-	"hey.com":        "mailgun",
-	"icloud.com":     "mailgun",
-	"me.com":         "mailgun",
-	"mac.com":        "mailgun",
-	"gmx.com":        "mailgun",
-	"aol.com":        "mailgun",
 }
 
 var fieldAliases = map[string][]string{
@@ -395,6 +231,9 @@ func RegisterEmailDomainMap(domain, provider string) {
 func main() {
 	templatePath := flag.String("template", "", "path to the template JSON file (base config)")
 	payloadPath := flag.String("payload", "", "path to the payload JSON file (overrides/template data)")
+	worker := flag.Bool("worker", false, "start scheduler worker")
+	storePath := flag.String("store", "scheduler_store.json", "path to scheduler store file")
+	schedule := flag.Bool("schedule", false, "schedule this email instead of sending now")
 	flag.Parse()
 
 	raw, err := loadConfigFiles(*templatePath, *payloadPath, flag.Args())
@@ -405,6 +244,43 @@ func main() {
 	config, err := parseConfig(raw)
 	if err != nil {
 		log.Fatalf("config error: %v", err)
+	}
+
+	if *worker {
+		store := NewFileJobStore(*storePath)
+		s := NewScheduler(store, 5*time.Second)
+		if err := s.Start(); err != nil {
+			log.Fatalf("cannot start scheduler: %v", err)
+		}
+		// block forever; in a real system you'd integrate graceful shutdown
+		select {}
+	}
+
+	if *schedule {
+		store := NewFileJobStore(*storePath)
+		s := NewScheduler(store, 5*time.Second)
+		// if user requested a workflow, schedule the defined sequence
+		if wf, ok := config.AdditionalData["workflow"].(string); ok && wf == "welcome" {
+			if err := ScheduleWelcomeWorkflow(s, config); err != nil {
+				log.Fatalf("schedule workflow failed: %v", err)
+			}
+			return
+		}
+
+		runAt := time.Now()
+		if v, ok := config.AdditionalData["run_at"].(string); ok && v != "" {
+			if t, err := time.Parse(time.RFC3339, v); err == nil {
+				runAt = t
+			}
+		} else if d, ok := config.AdditionalData["delay_seconds"].(float64); ok && d > 0 {
+			runAt = time.Now().Add(time.Duration(d) * time.Second)
+		}
+		job, err := s.Schedule(config, runAt, nil)
+		if err != nil {
+			log.Fatalf("schedule failed: %v", err)
+		}
+		log.Printf("scheduled job %s to run at %s", job.ID, job.RunAt)
+		return
 	}
 
 	log.Printf("Sending email to %v via %s (%s)...", config.To, config.TransportDetails(), config.ProviderOrHost())
@@ -523,6 +399,8 @@ func parseConfig(raw map[string]any) (*EmailConfig, error) {
 	cfg.Timeout = getDurationField(norm, "timeout")
 	cfg.RetryCount = getIntField(norm, "retries")
 	cfg.RetryDelay = getDurationField(norm, "retry_delay")
+	cfg.MaxRetryDelay = getDurationField(norm, "max_retry_delay")
+	cfg.ProviderPriority = getStringArrayField(norm, "provider_priority")
 	cfg.UseTLS = getBoolField(norm, "use_tls")
 	cfg.UseSSL = getBoolField(norm, "use_ssl")
 	cfg.SkipTLSVerify = getBoolField(norm, "skip_tls_verify")
@@ -890,23 +768,75 @@ func loadTemplateBodies(cfg *EmailConfig) error {
 }
 
 func sendEmail(cfg *EmailConfig) error {
-	var lastErr error
-	for attempt := 1; attempt <= cfg.RetryCount; attempt++ {
-		if cfg.Transport == "http" {
-			lastErr = sendViaHTTP(cfg)
-		} else {
-			lastErr = sendViaSMTP(cfg)
-		}
-		if lastErr == nil {
-			return nil
-		}
-		if attempt < cfg.RetryCount {
-			delay := backoffDelay(attempt, cfg.RetryDelay)
-			log.Printf("attempt %d/%d failed: %v (retrying in %s)", attempt, cfg.RetryCount, lastErr, delay)
-			time.Sleep(delay)
+	// Build the ordered provider list to try.
+	providers := make([]string, 0, len(cfg.ProviderPriority)+1)
+	if len(cfg.ProviderPriority) > 0 {
+		for _, p := range cfg.ProviderPriority {
+			if strings.TrimSpace(p) != "" {
+				providers = append(providers, strings.ToLower(strings.TrimSpace(p)))
+			}
 		}
 	}
+	// If no explicit priority list, fall back to single provider from config (may be empty)
+	if len(providers) == 0 {
+		if cfg.Provider != "" {
+			providers = append(providers, cfg.Provider)
+		} else {
+			// ensure we still try using the configured provider or host
+			providers = append(providers, cfg.Provider)
+		}
+	}
+
+	var lastErr error
+	for _, prov := range providers {
+		// Try each provider in order; create a shallow copy to avoid mutating original cfg.
+		cfgCopy := *cfg
+		cfgCopy.Provider = prov
+		applyProviderDefaults(&cfgCopy)
+		applyHTTPProfile(&cfgCopy)
+		if err := finalizeConfig(&cfgCopy); err != nil {
+			lastErr = err
+			log.Printf("skipping provider %s due to config error: %v", prov, err)
+			continue
+		}
+
+		for attempt := 1; attempt <= cfgCopy.RetryCount; attempt++ {
+			var err error
+			if cfgCopy.Transport == "http" {
+				err = sendViaHTTP(&cfgCopy)
+			} else {
+				err = sendViaSMTP(&cfgCopy)
+			}
+			if err == nil {
+				return nil
+			}
+			lastErr = err
+			if attempt < cfgCopy.RetryCount {
+				delay := jitterBackoff(attempt, cfgCopy.RetryDelay, cfgCopy.MaxRetryDelay)
+				log.Printf("provider=%s attempt %d/%d failed: %v (retrying in %s)", prov, attempt, cfgCopy.RetryCount, err, delay)
+				time.Sleep(delay)
+			}
+		}
+		log.Printf("provider %s exhausted, trying next provider if any", prov)
+	}
 	return lastErr
+}
+
+// jitterBackoff uses full jitter strategy: random[0, min(maxDelay, base*2^(attempt-1))].
+func jitterBackoff(attempt int, base time.Duration, maxDelay time.Duration) time.Duration {
+	if base <= 0 {
+		base = 2 * time.Second
+	}
+	factor := 1 << (attempt - 1)
+	upper := time.Duration(factor) * base
+	if maxDelay > 0 && upper > maxDelay {
+		upper = maxDelay
+	}
+	if upper <= 0 {
+		return 0
+	}
+	j := time.Duration(mrand.Int63n(int64(upper) + 1))
+	return j
 }
 
 func sendViaSMTP(cfg *EmailConfig) error {
@@ -3019,41 +2949,6 @@ func registerValue(values map[string]string, value string, overwrite bool, keys 
 		}
 		values[normalized] = value
 	}
-}
-
-func normalizePlaceholderKey(key string) string {
-	key = strings.TrimSpace(strings.ToLower(key))
-	if key == "" {
-		return ""
-	}
-	var b strings.Builder
-	last := rune(0)
-	for _, r := range key {
-		switch {
-		case r >= 'a' && r <= 'z':
-			b.WriteRune(r)
-			last = r
-		case r >= '0' && r <= '9':
-			b.WriteRune(r)
-			last = r
-		case r == '.' || r == '_':
-			if last == '.' || last == '_' || b.Len() == 0 {
-				continue
-			}
-			b.WriteRune(r)
-			last = r
-		default:
-			if last == '_' {
-				continue
-			}
-			if b.Len() == 0 {
-				continue
-			}
-			b.WriteRune('_')
-			last = '_'
-		}
-	}
-	return strings.Trim(b.String(), "._")
 }
 
 func flattenAdditionalData(values map[string]string, data map[string]any) {

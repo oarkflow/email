@@ -127,6 +127,29 @@ Open `http://localhost:8025` to inspect captured messages. To exercise other tem
 - Inline attachments are supported; set `"inline": true` and optional `"content_id"` per attachment to embed images into HTML bodies.
 - Delivery headers: `return_path`, `list_unsubscribe`, `list_unsubscribe_post`, SES `configuration_set`, and `tags` are now configurable.
 
+## Scheduling & Workflows 🔧
+
+This release introduces a lightweight scheduler and workflow helper built into the binary.
+
+- Start a long-running worker that polls a job store and sends scheduled emails:
+
+```bash
+# start a worker (persisted store at scheduler_store.json by default)
+go run . --worker
+```
+
+- Schedule an email (or a pre-defined workflow) instead of sending immediately:
+
+```bash
+# schedule a single email described by the payload/template
+go run . --schedule template.json payload.json
+
+# schedule the welcome workflow if `"workflow":"welcome"` is set in the payload
+go run . --schedule template.json examples/workflow_payload.json
+```
+
+- The job store is a simple JSON file (`scheduler_store.json`) by default and is suitable for single-process execution; a pluggable store interface is provided to add DB-backed persistence later.
+
 ## Custom Payloads
 
 When `type` is set to `http`, the sender can:
