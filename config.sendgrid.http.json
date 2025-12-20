@@ -1,0 +1,19 @@
+{
+    "use": "sendgrid",
+    "type": "http",
+    "api_key": "{{env.SENDGRID_API_KEY}}",
+    "from_name": "Release Bot",
+    "from": "bot@example.com",
+    "to": [ "owner@example.com" ],
+    "subject": "SendGrid API demo {{release.tag}}",
+    "body_html": "<strong>{{project}}</strong> shipped build {{release.tag}} to {{environment}}",
+    "body_text": "{{project}} shipped build {{release.tag}} to {{environment}}",
+    "headers": {
+        "X-Trace": "{{release.tag}}"
+    },
+    "release": {
+        "tag": "v1.2.3"
+    },
+    "project": "Flexible email sender",
+    "environment": "staging"
+}

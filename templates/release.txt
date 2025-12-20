@@ -1,0 +1,4 @@
+{{project}} {{release.tag}} is ready for {{environment}}.
+
+Primary contact: {{release.owner_email}}
+Changelog attached for details.

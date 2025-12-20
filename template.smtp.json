@@ -1,0 +1,19 @@
+{
+    "use": "gmail",
+    "username": "{{env.GMAIL_USERNAME}}",
+    "password": "{{env.GMAIL_APP_PASSWORD}}",
+    "from": "{{username}}",
+    "subject": "[{{environment}}] Release {{release.tag}} ready",
+    "text_template": "./templates/release.txt",
+    "html_template": "./templates/release.html",
+    "headers": {
+        "X-Project": "{{project}}",
+        "X-Release": "{{release.tag}}"
+    },
+    "attachments": [
+        {
+            "source": "{{changelog_path}}",
+            "name": "changelog-{{release.tag}}.md"
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+{
+    "use": "mailtrap",
+    "type": "http",
+    "token": "MAILTRAP_TOKEN",
+    "from_name": "QA Bot",
+    "from": "qa@example.com",
+    "to": [ "demo@inbox.mailtrap.io" ],
+    "subject": "Mailtrap HTTP delivery {{build.id}}",
+    "message": "Plain-text fallback for build {{build.id}} in {{environment}}",
+    "body_html": "<p>Build <strong>{{build.id}}</strong> for {{environment}} finished at {{now}}</p>",
+    "build": {
+        "id": "build-4580"
+    },
+    "environment": "qa"
+}

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>{{project}} release {{release.tag}}</title>
+</head>
+
+<body>
+    <h2>{{project}} {{release.tag}} is ready for {{environment}}</h2>
+    <p>The latest release is now staged and ready for rollout.</p>
+    <ul>
+        <li><strong>Project:</strong> {{project}}</li>
+        <li><strong>Release:</strong> {{release.tag}}</li>
+        <li><strong>Environment:</strong> {{environment}}</li>
+    </ul>
+    <p>Primary contact: <a href="mailto:{{release.owner_email}}">{{release.owner_email}}</a></p>
+    <p>Changelog attached for reference.</p>
+</body>
+
+</html>

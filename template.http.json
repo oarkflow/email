@@ -1,0 +1,20 @@
+{
+    "type": "http",
+    "endpoint": "https://httpbin.org/post",
+    "http_method": "POST",
+    "from": "templates@example.com",
+    "http_payload": {
+        "summary": "{{project}} release {{release.tag}}",
+        "body": {
+            "targets": "{{to}}",
+            "environment": "{{environment}}",
+            "sent_at": "{{now}}"
+        }
+    },
+    "headers": {
+        "X-Env": "{{environment}}",
+        "X-Release": "{{release.tag}}"
+    },
+    "subject": "HTTP template {{release.tag}}",
+    "message": "Fallback for {{project}}"
+}

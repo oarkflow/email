@@ -1,0 +1,8 @@
+{
+    "project": "Flexible email sender",
+    "environment": "staging",
+    "release": {
+        "tag": "v4.0.0"
+    },
+    "to": [ "api-demo@example.com" ]
+}

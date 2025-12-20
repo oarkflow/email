@@ -1,0 +1,17 @@
+{
+    "use": "gmail",
+    "username": "info@verishore.com",
+    "password": "mqzx ysyj qsjp ivvk",
+    "from": "{{username}}",
+    "to": [ "info@orgwareconstruct.com" ],
+    "subject": "Test Email {{release.tag}} for {{environment}}",
+    "message": "Hello from {{project}}! Recipient(s): {{to}}",
+    "headers": {
+        "X-Environment": "{{environment}}"
+    },
+    "project": "Flexible email sender",
+    "environment": "production",
+    "release": {
+        "tag": "v1.0.0"
+    }
+}

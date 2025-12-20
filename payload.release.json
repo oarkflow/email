@@ -1,0 +1,11 @@
+{
+    "to": [ "release-team@example.com" ],
+    "cc": [ "ops@example.com" ],
+    "project": "Flexible email sender",
+    "environment": "production",
+    "release": {
+        "tag": "v3.2.0",
+        "owner_email": "release-owner@example.com"
+    },
+    "changelog_path": "./CHANGELOG.md"
+}

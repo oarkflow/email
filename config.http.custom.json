@@ -1,0 +1,29 @@
+{
+    "type": "http",
+    "endpoint": "https://httpbin.org/post",
+    "http_method": "POST",
+    "from": "templates@example.com",
+    "to": [ "demo@example.com" ],
+    "subject": "HTTP placeholder demo {{release.tag}}",
+    "message": "Fallback text for {{project}} release {{release.tag}}",
+    "headers": {
+        "X-Project": "{{project}}",
+        "X-Release": "{{release.tag}}"
+    },
+    "query_params": {
+        "env": "{{environment}}"
+    },
+    "http_payload": {
+        "summary": "{{project}} release {{release.tag}}",
+        "details": {
+            "targets": "{{to}}",
+            "sent_at": "{{now}}",
+            "environment": "{{environment}}"
+        }
+    },
+    "project": "Flexible email sender",
+    "environment": "development",
+    "release": {
+        "tag": "v2.0.0"
+    }
+}

@@ -1,0 +1,23 @@
+{
+    "provider": "aws_ses",
+    "type": "http",
+    "aws_region": "us-east-1",
+    "aws_access_key": "{{env.AWS_ACCESS_KEY_ID}}",
+    "aws_secret_key": "{{env.AWS_SECRET_ACCESS_KEY}}",
+    "aws_session_token": "{{env.AWS_SESSION_TOKEN}}",
+    "from_name": "Release Bot",
+    "from": "release@example.com",
+    "to": [ "demo@example.com" ],
+    "subject": "SES HTTP release {{release.tag}}",
+    "body_html": "<p>Release <strong>{{release.tag}}</strong> shipped at {{now}}</p>",
+    "body_text": "Release {{release.tag}} shipped at {{now}}",
+    "configuration_set": "releases",
+    "tags": {
+        "env": "staging",
+        "release": "{{release.tag}}"
+    },
+    "list_unsubscribe": [ "<mailto:unsubscribe@example.com>", "<https://example.com/unsubscribe/{{to}}>" ],
+    "release": {
+        "tag": "v1.2.3"
+    }
+}

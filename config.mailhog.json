@@ -1,0 +1,18 @@
+{
+    "host": "localhost",
+    "port": 1025,
+    "use_tls": false,
+    "from": "$(secretr mailhog.from)",
+    "to": [
+        "qa-team@example.com"
+    ],
+    "subject": "[MailHog] {{project}} {{release.tag}} smoke test",
+    "html_template": "./templates/release.html",
+    "text_template": "./templates/release.txt",
+    "project": "Flexible email sender",
+    "environment": "local",
+    "release": {
+        "tag": "v0.0.0-dev",
+        "owner_email": "qa-team@example.com"
+    }
+}
