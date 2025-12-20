@@ -1,0 +1,15 @@
+{
+  "from": "Acme <noreply@acme.example>",
+  "from_name": "Acme Product Team",
+  "html_template": "templates/pipeline_welcome_mailhog.html",
+  "text_template": "templates/pipeline_welcome_mailhog.txt",
+  "type": "smtp",
+  "host": "localhost",
+  "port": 1025,
+  "use_tls": false,
+  "use_ssl": false,
+  "provider_priority": ["smtp"],
+  "retries": 3,
+  "retry_delay": "5s",
+  "timeout": "15s"
+}

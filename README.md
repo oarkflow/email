@@ -127,6 +127,11 @@ You can run the full onboarding pipeline (4-step workflow) using the MailHog-rea
 # 1) schedule the pipeline workflow (stores jobs in scheduler_store.json)
 go run . --schedule --store scheduler_store.json --template examples/pipeline_template_mailhog.json --payload examples/pipeline_payload_mailhog.json
 
+# Quick demo using the simple `template.json`/`payload.json` examples
+# schedule a small demo workflow using the lightweight examples/template.json + examples/payload.json
+# (also MailHog-ready since template points at localhost:1025 SMTP)
+go run . --schedule --store scheduler_store.json --template examples/template.json --payload examples/payload.json
+
 # 2) start a worker that will execute scheduled jobs (in a separate terminal)
 go run . --worker --store scheduler_store.json
 

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 type placeholderMode int
@@ -125,6 +126,53 @@ func newPlaceholderResolver(cfg *EmailConfig) *placeholderResolver {
 		values:  buildPlaceholderValues(cfg),
 		missing: map[string]struct{}{},
 	}
+}
+
+func buildPlaceholderValues(cfg *EmailConfig) map[string]string {
+	values := map[string]string{}
+	now := time.Now()
+	registerValue(values, now.Format(time.RFC3339), true, "now", "datetime")
+	registerValue(values, now.Format("2006-01-02"), true, "today", "date")
+	registerValue(values, fmt.Sprintf("%d", now.Unix()), true, "timestamp")
+	registerValue(values, cfg.Provider, true, "provider", "service")
+	registerValue(values, cfg.Transport, true, "transport", "type")
+	registerValue(values, cfg.HTTPMethod, true, "http_method", "verb")
+	registerValue(values, cfg.Endpoint, true, "endpoint", "url", "api_url")
+	registerValue(values, cfg.Host, true, "host", "server", "smtp_host")
+	registerValue(values, cfg.From, true, "from", "sender", "from_email")
+	registerValue(values, cfg.FromName, true, "from_name", "sender_name")
+	registerValue(values, cfg.EnvelopeFrom, true, "envelope_from", "return_path")
+	registerValue(values, cfg.Username, true, "username", "user", "login")
+	registerValue(values, cfg.Password, true, "password", "pass")
+	registerValue(values, cfg.APIKey, true, "api_key", "key")
+	registerValue(values, cfg.APIToken, true, "api_token", "token", "bearer")
+	registerValue(values, cfg.HTTPAuth, true, "http_auth", "auth")
+	registerValue(values, cfg.Subject, true, "subject", "title")
+	registerValue(values, cfg.Body, true, "body", "message", "content", "raw_body")
+	registerValue(values, cfg.TextBody, true, "text_body", "text", "plain_text")
+	registerValue(values, cfg.HTMLBody, true, "html_body", "html")
+	registerValue(values, cfg.ConfigurationSet, true, "configuration_set", "config_set")
+	registerValue(values, cfg.AWSRegion, true, "aws_region", "region")
+	registerValue(values, cfg.AWSAccessKey, false, "aws_access_key", "access_key")
+	registerValue(values, cfg.AWSSecretKey, false, "aws_secret_key", "secret_key")
+	registerValue(values, cfg.AWSSessionToken, false, "aws_session_token", "session_token")
+	registerSliceValue(values, cfg.To, true, "to", "recipients", "send_to")
+	registerSliceValue(values, cfg.CC, true, "cc")
+	registerSliceValue(values, cfg.BCC, true, "bcc")
+	registerSliceValue(values, cfg.ReplyTo, true, "reply_to")
+	registerSliceValue(values, cfg.ListUnsubscribe, true, "list_unsubscribe")
+	if len(cfg.Tags) > 0 {
+		var tagParts []string
+		for k, v := range cfg.Tags {
+			tagParts = append(tagParts, fmt.Sprintf("%s=%s", k, v))
+		}
+		sort.Strings(tagParts)
+		registerValue(values, strings.Join(tagParts, ";"), true, "tags", "ses_tags")
+	}
+	if cfg.AdditionalData != nil {
+		flattenAdditionalData(values, cfg.AdditionalData)
+	}
+	return values
 }
 
 func (r *placeholderResolver) Err() error {
