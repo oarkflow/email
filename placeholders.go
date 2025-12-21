@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"sort"
@@ -115,21 +114,17 @@ func applyPlaceholders(cfg *EmailConfig, mode placeholderMode) error {
 			if len(missing) == 1 && missing[0] == "step" {
 				if cfg.AdditionalData != nil {
 					if _, ok := cfg.AdditionalData["workflow_steps"]; ok {
-						log.Printf("[placeholders] deferring missing {{step}} placeholder until scheduled job runs")
 						return nil
 					}
 					if _, ok := cfg.AdditionalData["workflow_definition"]; ok {
-						log.Printf("[placeholders] deferring missing {{step}} placeholder until scheduled job runs")
 						return nil
 					}
 					if wf, ok := cfg.AdditionalData["workflow"]; ok {
 						switch wf.(type) {
 						case []any:
-							log.Printf("[placeholders] deferring missing {{step}} placeholder until scheduled job runs")
 							return nil
 						case string:
 							// legacy string-based workflows (e.g., "welcome")
-							log.Printf("[placeholders] deferring missing {{step}} placeholder until scheduled job runs")
 							return nil
 						}
 					}
@@ -368,7 +363,6 @@ func (r *placeholderResolver) logMissing(key string) {
 	if key == "" {
 		return
 	}
-	log.Printf("[placeholders] missing value for %s", key)
 }
 
 func logPlaceholderResolved(key, value string) {
@@ -376,7 +370,6 @@ func logPlaceholderResolved(key, value string) {
 	if key == "" {
 		return
 	}
-	log.Printf("[placeholders] %s => %s", key, maskPlaceholderValue(key, value))
 }
 
 func maskPlaceholderValue(key, value string) string {

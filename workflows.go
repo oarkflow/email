@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -25,15 +26,40 @@ func ScheduleWelcomeWorkflow(s *Scheduler, base *EmailConfig) error {
 		{7 * 24 * time.Hour, map[string]any{"step": "idle_reminder"}, "We miss you"},
 	}
 
-	for _, sdef := range steps {
+	var lastJobID string
+	for idx, sdef := range steps {
 		cfgCopy := *base
+		cfgCopy.AdditionalData = cloneAdditionalData(base.AdditionalData)
 		// modify subject to identify the step
 		cfgCopy.Subject = sdef.subj
 		runAt := now.Add(sdef.offset)
-		job, err := s.Schedule(&cfgCopy, runAt, sdef.meta)
+
+		// Add step metadata to AdditionalData so it's available at execution time
+		if cfgCopy.AdditionalData == nil {
+			cfgCopy.AdditionalData = map[string]any{}
+		}
+		meta := map[string]any{}
+		for k, v := range sdef.meta {
+			cfgCopy.AdditionalData[k] = v
+			meta[k] = v
+		}
+		meta["step_index"] = idx
+		if lastJobID != "" {
+			meta["prev_job_id"] = lastJobID
+			meta["require_last_success"] = true
+		}
+		if _, ok := meta["skip_ahead"]; !ok {
+			meta["skip_ahead"] = false
+		}
+		for k, v := range meta {
+			cfgCopy.AdditionalData[k] = v
+		}
+
+		job, err := s.Schedule(&cfgCopy, runAt, meta)
 		if err != nil {
 			return err
 		}
+		lastJobID = job.ID
 		log.Printf("workflow: scheduled %s at %s (job=%s)", sdef.meta["step"], job.RunAt, job.ID)
 	}
 	return nil
@@ -59,6 +85,7 @@ func ScheduleGenericWorkflow(s *Scheduler, base *EmailConfig, def any) error {
 		return fmt.Errorf("workflow definition must be an array of steps")
 	}
 	now := time.Now()
+	var lastJobID string
 	for i, raw := range arr {
 		stepMap, ok := raw.(map[string]any)
 		if !ok {
@@ -74,8 +101,12 @@ func ScheduleGenericWorkflow(s *Scheduler, base *EmailConfig, def any) error {
 			runAt = now.Add(time.Duration(v) * time.Second)
 		}
 
+		// Create a copy of the base config for this step
 		cfgCopy := *base
-		// apply overrides
+		cfgCopy.AdditionalData = cloneAdditionalData(base.AdditionalData)
+
+		// Apply step-specific overrides BEFORE template parsing
+		// This ensures that step-specific subjects, bodies, etc. are available during placeholder resolution
 		if subj, ok := stepMap["subject"].(string); ok && subj != "" {
 			cfgCopy.Subject = subj
 		}
@@ -118,16 +149,45 @@ func ScheduleGenericWorkflow(s *Scheduler, base *EmailConfig, def any) error {
 			cfgCopy.MaxRetryDelay = time.Duration(mrd) * time.Second
 		}
 
+		// Create metadata for this step
 		meta := map[string]any{"step_index": i}
+		if lastJobID != "" {
+			meta["prev_job_id"] = lastJobID
+		}
 		if name, ok := stepMap["name"].(string); ok && name != "" {
 			meta["name"] = name
-			// provide a common `step` key for templates that refer to {{step}}
 			meta["step"] = name
+		}
+		if stepLabel, ok := stepMap["step"].(string); ok && stepLabel != "" {
+			meta["step"] = stepLabel
+		}
+		requireLast := false
+		if rawReq, ok := stepMap["require_last_success"]; ok {
+			requireLast = normalizeBool(rawReq)
+		}
+		if requireLast {
+			meta["require_last_success"] = true
+			skipAhead := false
+			if rawSkip, ok := stepMap["skip_ahead"]; ok {
+				skipAhead = normalizeBool(rawSkip)
+			}
+			meta["skip_ahead"] = skipAhead
+		}
+		if _, ok := meta["step"].(string); !ok || strings.TrimSpace(fmt.Sprint(meta["step"])) == "" {
+			meta["step"] = fmt.Sprintf("step-%d", i)
+		}
+		// Add step metadata to AdditionalData so it's available at execution time
+		if cfgCopy.AdditionalData == nil {
+			cfgCopy.AdditionalData = map[string]any{}
+		}
+		for k, v := range meta {
+			cfgCopy.AdditionalData[k] = v
 		}
 		job, err := s.Schedule(&cfgCopy, runAt, meta)
 		if err != nil {
 			return err
 		}
+		lastJobID = job.ID
 		log.Printf("workflow: scheduled step %v at %s (job=%s)", meta, job.RunAt, job.ID)
 	}
 	return nil

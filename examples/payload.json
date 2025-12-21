@@ -4,22 +4,40 @@
         "login_url": "https://app.example/login",
         "tour_url": "https://app.example/tour"
     },
+    "schedule": "once",
     "workflow_steps": [
         {
             "name": "welcome",
+            "step": "welcome",
             "delay_seconds": 0,
             "subject": "Welcome to Acme — Start here",
-            "provider_priority": [ "smtp" ],
+            "provider_priority": [ "smtp", "sendgrid" ],
             "retry_count": 2,
-            "retry_delay_seconds": 5
+            "retry_delay_seconds": 5,
+            "require_last_success": false,
+            "skip_ahead": false
         },
         {
             "name": "followup",
+            "step": "followup",
             "delay_seconds": 60,
             "subject": "A quick follow-up",
             "body": "Hi {{to}}, just checking in to see how things are going. Login: {{data.login_url}}",
-            "provider_priority": [ "smtp" ],
-            "retry_count": 2
+            "provider_priority": [ "smtp", "sendgrid" ],
+            "retry_count": 2,
+            "require_last_success": true,
+            "skip_ahead": false
+        },
+        {
+            "name": "nudge",
+            "step": "nudge",
+            "delay_seconds": 3600,
+            "subject": "Need any help?",
+            "body": "We're here if you need support. Tour: {{data.tour_url}}",
+            "provider_priority": [ "sendgrid", "smtp" ],
+            "retry_count": 1,
+            "require_last_success": true,
+            "skip_ahead": true
         }
     ]
 }

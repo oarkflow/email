@@ -7,6 +7,7 @@
     "retry_count": 2,
     "retry_delay_seconds": 3,
     "max_retry_delay_seconds": 30,
+    "schedule": "repeat",
 
     "workflow_steps": [
         {
@@ -16,7 +17,9 @@
             "body": "Thanks for joining — we are glad to have you!",
             "provider_priority": [ "sendgrid", "smtp" ],
             "retry_count": 3,
-            "retry_delay_seconds": 2
+            "retry_delay_seconds": 2,
+            "require_last_success": false,
+            "skip_ahead": false
         },
         {
             "name": "credentials",
@@ -24,7 +27,9 @@
             "subject": "Your credentials",
             "body": "Here are your login credentials...",
             "provider_priority": [ "smtp", "sendgrid" ],
-            "retry_count": 2
+            "retry_count": 2,
+            "require_last_success": true,
+            "skip_ahead": false
         },
         {
             "name": "walkthrough",
@@ -32,7 +37,9 @@
             "subject": "A short product walkthrough",
             "body": "This email contains a short guide to get you started.",
             "provider_priority": [ "sendgrid" ],
-            "retry_count": 2
+            "retry_count": 2,
+            "require_last_success": true,
+            "skip_ahead": true
         },
         {
             "name": "idle_reminder",
@@ -40,7 +47,9 @@
             "subject": "We miss you",
             "body": "It's been a while — come back for new features!",
             "provider_priority": [ "smtp", "sendgrid" ],
-            "retry_count": 1
+            "retry_count": 1,
+            "require_last_success": true,
+            "skip_ahead": true
         }
     ]
 }

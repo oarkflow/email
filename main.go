@@ -73,6 +73,12 @@ type EmailConfig struct {
 	TextTemplatePath    string
 	BodyTemplatePath    string
 	AdditionalData      map[string]any
+	ScheduleMode        string
+	RawSubject          string         `json:"-"`
+	RawBody             string         `json:"-"`
+	RawTextBody         string         `json:"-"`
+	RawHTMLBody         string         `json:"-"`
+	RawHTTPPayload      map[string]any `json:"-"`
 	AWSRegion           string
 	AWSAccessKey        string
 	AWSSecretKey        string
@@ -143,6 +149,7 @@ var fieldAliases = map[string][]string{
 	"http_auth_header":        {"http_auth_header", "auth_header", "api_key_header"},
 	"http_auth_query":         {"http_auth_query", "auth_query", "api_key_query", "auth_param"},
 	"http_auth_prefix":        {"http_auth_prefix", "auth_prefix", "bearer_prefix"},
+	"schedule_mode":           {"schedule_mode", "schedule"},
 	"max_conns_per_host":      {"max_conns_per_host", "max_connections", "max_conns"},
 	"max_idle_conns":          {"max_idle_conns", "idle_conns", "max_idle"},
 	"max_idle_conns_per_host": {"max_idle_conns_per_host", "max_idle_host", "idle_conns_host"},
@@ -266,11 +273,12 @@ func main() {
 		return
 	}
 
-
-
-
 	log.Printf("Sending email to %v via %s (%s)...", config.To, config.TransportDetails(), config.ProviderOrHost())
-	if err := sendEmail(config); err != nil {
+	if err := sendEmail(config, nil); err != nil {
+		if errors.Is(err, errDeduplicated) {
+			log.Println("Send skipped: duplicate detected (schedule=once)")
+			return
+		}
 		log.Fatalf("send failed: %v", err)
 	}
 	log.Println("Email sent successfully!")
@@ -394,6 +402,10 @@ func parseConfig(raw map[string]any) (*EmailConfig, error) {
 	if cfg.AdditionalData == nil {
 		cfg.AdditionalData = map[string]any{}
 	}
+	cfg.ScheduleMode = strings.ToLower(getStringField(norm, "schedule_mode"))
+	if cfg.ScheduleMode == "" {
+		cfg.ScheduleMode = "repeat"
+	}
 	// Support nested wrapper keys often used by payloads such as "additional_data": {...} or "data": {...}
 	// Merge their contents up to the top-level AdditionalData map so placeholders like {{data.key}} and {{key}} work.
 	if inner, ok := cfg.AdditionalData["additional_data"]; ok {
@@ -424,11 +436,13 @@ func parseConfig(raw map[string]any) (*EmailConfig, error) {
 	if err := loadTemplateBodies(cfg); err != nil {
 		return nil, err
 	}
+	cfg.captureRawContent()
 
 	if err := applyPlaceholders(cfg, placeholderModePostFinalize); err != nil {
 		return nil, err
 	}
 	resolveBodies(cfg)
+	cfg.restoreRawContent()
 
 	return cfg, nil
 }
@@ -771,11 +785,63 @@ func loadTemplateBodies(cfg *EmailConfig) error {
 	return nil
 }
 
-func sendEmail(cfg *EmailConfig) error {
+type SendContext struct {
+	JobID              string
+	Step               string
+	StepIndex          int
+	PrevJobID          string
+	RequireLastSuccess bool
+	SkipAhead          bool
+}
+
+var errDeduplicated = errors.New("duplicate email skipped")
+
+func prepareSendConfig(cfg *EmailConfig) (*EmailConfig, error) {
+	cfgCopy := *cfg
+	cfgCopy.AdditionalData = cloneAdditionalData(cfg.AdditionalData)
+	cfgCopy.restoreRawContent()
+	if err := applyPlaceholders(&cfgCopy, placeholderModePostFinalize); err != nil {
+		return nil, err
+	}
+	resolveBodies(&cfgCopy)
+	return &cfgCopy, nil
+}
+
+func dedupKeyFromConfig(cfg *EmailConfig, ctx *SendContext) string {
+	mode := strings.ToLower(strings.TrimSpace(cfg.ScheduleMode))
+	if mode == "" || mode == "repeat" {
+		return ""
+	}
+	step := ""
+	if ctx != nil && strings.TrimSpace(ctx.Step) != "" {
+		step = strings.TrimSpace(ctx.Step)
+	} else if s, ok := cfg.AdditionalData["step"].(string); ok {
+		step = strings.TrimSpace(s)
+	}
+	recipients := strings.ToLower(strings.Join(cfg.To, ","))
+	subjectHash := sha256Hex([]byte(strings.ToLower(strings.TrimSpace(cfg.Subject))))
+	bodyHash := sha256Hex([]byte(strings.ToLower(strings.TrimSpace(cfg.Body + cfg.TextBody + cfg.HTMLBody))))
+	return fmt.Sprintf("%s|%s|%s|%s", recipients, strings.ToLower(step), subjectHash, bodyHash)
+}
+
+func sendEmail(cfg *EmailConfig, ctx *SendContext) error {
+	preparedCfg, err := prepareSendConfig(cfg)
+	if err != nil {
+		return err
+	}
+	dedupKey := dedupKeyFromConfig(preparedCfg, ctx)
+	if dedupKey != "" && dedupKeyExists(dedupKey) {
+		if ctx != nil {
+			log.Printf("sendEmail: duplicate detected job=%s step=%s, skipping", ctx.JobID, ctx.Step)
+		} else {
+			log.Printf("sendEmail: duplicate detected, skipping immediate send")
+		}
+		return errDeduplicated
+	}
 	// Build the ordered provider list to try.
-	providers := make([]string, 0, len(cfg.ProviderPriority)+1)
-	if len(cfg.ProviderPriority) > 0 {
-		for _, p := range cfg.ProviderPriority {
+	providers := make([]string, 0, len(preparedCfg.ProviderPriority)+1)
+	if len(preparedCfg.ProviderPriority) > 0 {
+		for _, p := range preparedCfg.ProviderPriority {
 			if strings.TrimSpace(p) != "" {
 				providers = append(providers, strings.ToLower(strings.TrimSpace(p)))
 			}
@@ -783,18 +849,18 @@ func sendEmail(cfg *EmailConfig) error {
 	}
 	// If no explicit priority list, fall back to single provider from config (may be empty)
 	if len(providers) == 0 {
-		if cfg.Provider != "" {
-			providers = append(providers, cfg.Provider)
+		if preparedCfg.Provider != "" {
+			providers = append(providers, preparedCfg.Provider)
 		} else {
 			// ensure we still try using the configured provider or host
-			providers = append(providers, cfg.Provider)
+			providers = append(providers, preparedCfg.Provider)
 		}
 	}
 
 	var lastErr error
 	for _, prov := range providers {
 		// Try each provider in order; create a shallow copy to avoid mutating original cfg.
-		cfgCopy := *cfg
+		cfgCopy := *preparedCfg
 		cfgCopy.Provider = prov
 		applyProviderDefaults(&cfgCopy)
 		applyHTTPProfile(&cfgCopy)
@@ -811,7 +877,11 @@ func sendEmail(cfg *EmailConfig) error {
 			} else {
 				err = sendViaSMTP(&cfgCopy)
 			}
+			recordSendAttempt(ctx, &cfgCopy, attempt, err)
 			if err == nil {
+				if dedupKey != "" {
+					markDedupKey(dedupKey)
+				}
 				return nil
 			}
 			lastErr = err
@@ -1342,6 +1412,80 @@ func mergeAdditional(base map[string]any, extras map[string]any, overwrite bool)
 		base[k] = v
 	}
 	return base
+}
+
+func (cfg *EmailConfig) captureRawContent() {
+	cfg.RawSubject = cfg.Subject
+	cfg.RawBody = cfg.Body
+	cfg.RawTextBody = cfg.TextBody
+	cfg.RawHTMLBody = cfg.HTMLBody
+	if cfg.HTTPPayload != nil {
+		if cloned, ok := cloneArbitraryValue(cfg.HTTPPayload).(map[string]any); ok {
+			cfg.RawHTTPPayload = cloned
+		} else {
+			cfg.RawHTTPPayload = nil
+		}
+	} else {
+		cfg.RawHTTPPayload = nil
+	}
+}
+
+func (cfg *EmailConfig) restoreRawContent() {
+	if cfg.RawSubject != "" {
+		cfg.Subject = cfg.RawSubject
+	}
+	if cfg.RawBody != "" {
+		cfg.Body = cfg.RawBody
+	}
+	if cfg.RawTextBody != "" {
+		cfg.TextBody = cfg.RawTextBody
+	}
+	if cfg.RawHTMLBody != "" {
+		cfg.HTMLBody = cfg.RawHTMLBody
+	}
+	if cfg.RawHTTPPayload != nil {
+		if cloned, ok := cloneArbitraryValue(cfg.RawHTTPPayload).(map[string]any); ok {
+			cfg.HTTPPayload = cloned
+		} else {
+			cfg.HTTPPayload = nil
+		}
+	}
+}
+
+func cloneAdditionalData(src map[string]any) map[string]any {
+	if src == nil {
+		return nil
+	}
+	copy := make(map[string]any, len(src))
+	for k, v := range src {
+		copy[k] = cloneArbitraryValue(v)
+	}
+	return copy
+}
+
+func cloneArbitraryValue(val any) any {
+	switch v := val.(type) {
+	case map[string]any:
+		return cloneAdditionalData(v)
+	case map[string]string:
+		dup := make(map[string]string, len(v))
+		for k, s := range v {
+			dup[k] = s
+		}
+		return dup
+	case []any:
+		dup := make([]any, len(v))
+		for i, item := range v {
+			dup[i] = cloneArbitraryValue(item)
+		}
+		return dup
+	case []string:
+		dup := make([]string, len(v))
+		copy(dup, v)
+		return dup
+	default:
+		return v
+	}
 }
 
 func normalizeObject(val any) map[string]any {
