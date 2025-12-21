@@ -1,0 +1,6 @@
+{"timestamp":"2025-12-21T04:17:45.680492Z","job_id":"job-dba7ea9a4bdb0a4355034e38","step":"welcome","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}
+{"timestamp":"2025-12-21T04:18:45.675966Z","job_id":"job-4f022a4e25b8d1b588a08fa6","step":"followup","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}
+{"timestamp":"2025-12-21T04:20:25.219534Z","job_id":"job-2bdec346948a37bc2690ae87","step":"welcome","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}
+{"timestamp":"2025-12-21T04:21:25.234765Z","job_id":"job-b002aa16bc0ab4367ea50e9c","step":"followup","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}
+{"timestamp":"2025-12-21T04:22:43.860512Z","job_id":"job-5f2cc3cd55fdee5c226ef0dd","step":"welcome","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}
+{"timestamp":"2025-12-21T04:23:43.881625Z","job_id":"job-cf1f5761b46a0b1f96161087","step":"followup","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}

@@ -7,7 +7,6 @@
     "retry_count": 2,
     "retry_delay_seconds": 3,
     "max_retry_delay_seconds": 30,
-    "schedule": "repeat",
 
     "workflow_steps": [
         {

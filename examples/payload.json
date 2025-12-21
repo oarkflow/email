@@ -4,7 +4,6 @@
         "login_url": "https://app.example/login",
         "tour_url": "https://app.example/tour"
     },
-    "schedule": "once",
     "workflow_steps": [
         {
             "name": "welcome",

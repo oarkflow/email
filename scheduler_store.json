@@ -1,6 +1,6 @@
 [
   {
-    "id": "job-f856c4636112729e5471174e",
+    "id": "job-54e65d0ee70fe4bf455bd3c2",
     "config": {
       "From": "noreply@acme.example",
       "FromName": "Acme Product Team",
@@ -14,10 +14,10 @@
       "BCC": null,
       "ListUnsubscribe": null,
       "ListUnsubscribePost": false,
-      "Subject": "Welcome to Acme — Start here",
-      "Body": "",
-      "TextBody": "Welcome to Acme!\n\nHello demo@example.org,\n\nThank you for joining Acme on 2025-12-20T22:15:03+05:45 — this email is part of the \"(none)\" step in your onboarding workflow.\n\nQuick links:\n  - Log in: https://app.example/login\n  - Quickstart tour: https://app.example/tour\n\n— The Acme Product Team",
-      "HTMLBody": "\u003c!doctype html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n  \u003cmeta charset=\"utf-8\"\u003e\n  \u003ctitle\u003eWelcome to Acme\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n  \u003ch1\u003eWelcome to Acme!\u003c/h1\u003e\n  \u003cp\u003eHello demo@example.org,\u003c/p\u003e\n  \u003cp\u003eThank you for joining Acme on 2025-12-20T22:15:03+05:45 — this email is part of the \u003cstrong\u003e(none)\u003c/strong\u003e step in your onboarding workflow.\u003c/p\u003e\n  \u003cp\u003eQuick links:\n    \u003cul\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/login\"\u003eLog in\u003c/a\u003e\u003c/li\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/tour\"\u003eTry the quickstart tour\u003c/a\u003e\u003c/li\u003e\n    \u003c/ul\u003e\n  \u003c/p\u003e\n  \u003cp\u003e— The Acme Product Team\u003c/p\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "Subject": "Need any help?",
+      "Body": "We're here if you need support. Tour: https://app.example/tour",
+      "TextBody": "We're here if you need support. Tour: https://app.example/tour",
+      "HTMLBody": "\u003c!doctype html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n  \u003cmeta charset=\"utf-8\"\u003e\n  \u003ctitle\u003eWelcome to Acme\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n  \u003ch1\u003eWelcome to Acme!\u003c/h1\u003e\n  \u003cp\u003eHello {{to}},\u003c/p\u003e\n  \u003cp\u003eThank you for joining Acme on {{now}} — this email is part of the \u003cstrong\u003e{{step}}\u003c/strong\u003e step in your onboarding workflow.\u003c/p\u003e\n  \u003cp\u003eQuick links:\n    \u003cul\u003e\n      \u003cli\u003e\u003ca href=\"{{data.login_url}}\"\u003eLog in\u003c/a\u003e\u003c/li\u003e\n      \u003cli\u003e\u003ca href=\"{{data.tour_url}}\"\u003eTry the quickstart tour\u003c/a\u003e\u003c/li\u003e\n    \u003c/ul\u003e\n  \u003c/p\u003e\n  \u003cp\u003e— The Acme Product Team\u003c/p\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n",
       "Attachments": null,
       "ConfigurationSet": "",
       "Tags": {},
@@ -50,17 +50,26 @@
       "BodyTemplatePath": "",
       "AdditionalData": {
         "login_url": "https://app.example/login",
-        "step": "(none)",
+        "name": "nudge",
+        "prev_job_id": "job-4f022a4e25b8d1b588a08fa6",
+        "require_last_success": true,
+        "skip_ahead": true,
+        "step": "nudge",
+        "step_index": 2,
         "tour_url": "https://app.example/tour",
         "workflow_steps": [
           {
             "delay_seconds": 0,
             "name": "welcome",
             "provider_priority": [
-              "smtp"
+              "smtp",
+              "sendgrid"
             ],
+            "require_last_success": false,
             "retry_count": 2,
             "retry_delay_seconds": 5,
+            "skip_ahead": false,
+            "step": "welcome",
             "subject": "Welcome to Acme — Start here"
           },
           {
@@ -68,13 +77,32 @@
             "delay_seconds": 60,
             "name": "followup",
             "provider_priority": [
+              "smtp",
+              "sendgrid"
+            ],
+            "require_last_success": true,
+            "retry_count": 2,
+            "skip_ahead": false,
+            "step": "followup",
+            "subject": "A quick follow-up"
+          },
+          {
+            "body": "We're here if you need support. Tour: https://app.example/tour",
+            "delay_seconds": 3600,
+            "name": "nudge",
+            "provider_priority": [
+              "sendgrid",
               "smtp"
             ],
-            "retry_count": 2,
-            "subject": "A quick follow-up"
+            "require_last_success": true,
+            "retry_count": 1,
+            "skip_ahead": true,
+            "step": "nudge",
+            "subject": "Need any help?"
           }
         ]
       },
+      "ScheduleMode": "",
       "AWSRegion": "",
       "AWSAccessKey": "",
       "AWSSecretKey": "",
@@ -83,23 +111,27 @@
       "UseSSL": false,
       "SkipTLSVerify": false,
       "Timeout": 15000000000,
-      "RetryCount": 2,
+      "RetryCount": 1,
       "RetryDelay": 5000000000,
       "MaxRetryDelay": 0,
       "ProviderPriority": [
+        "sendgrid",
         "smtp"
       ]
     },
-    "run_at": "2025-12-20T16:30:03.821328003Z",
+    "run_at": "2025-12-21T05:17:44.719118Z",
     "attempts": 0,
     "meta": {
-      "name": "welcome",
-      "step": "welcome",
-      "step_index": 0
+      "name": "nudge",
+      "prev_job_id": "job-4f022a4e25b8d1b588a08fa6",
+      "require_last_success": true,
+      "skip_ahead": true,
+      "step": "nudge",
+      "step_index": 2
     }
   },
   {
-    "id": "job-0c9272aa0cbcd957f3caa311",
+    "id": "job-f9689d8cffe65341c7e378c4",
     "config": {
       "From": "noreply@acme.example",
       "FromName": "Acme Product Team",
@@ -113,10 +145,10 @@
       "BCC": null,
       "ListUnsubscribe": null,
       "ListUnsubscribePost": false,
-      "Subject": "A quick follow-up",
-      "Body": "Hi demo@example.org, just checking in to see how things are going. Login: https://app.example/login",
-      "TextBody": "Hi demo@example.org, just checking in to see how things are going. Login: https://app.example/login",
-      "HTMLBody": "\u003c!doctype html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n  \u003cmeta charset=\"utf-8\"\u003e\n  \u003ctitle\u003eWelcome to Acme\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n  \u003ch1\u003eWelcome to Acme!\u003c/h1\u003e\n  \u003cp\u003eHello demo@example.org,\u003c/p\u003e\n  \u003cp\u003eThank you for joining Acme on 2025-12-20T22:15:03+05:45 — this email is part of the \u003cstrong\u003e(none)\u003c/strong\u003e step in your onboarding workflow.\u003c/p\u003e\n  \u003cp\u003eQuick links:\n    \u003cul\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/login\"\u003eLog in\u003c/a\u003e\u003c/li\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/tour\"\u003eTry the quickstart tour\u003c/a\u003e\u003c/li\u003e\n    \u003c/ul\u003e\n  \u003c/p\u003e\n  \u003cp\u003e— The Acme Product Team\u003c/p\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "Subject": "Need any help?",
+      "Body": "We're here if you need support. Tour: https://app.example/tour",
+      "TextBody": "We're here if you need support. Tour: https://app.example/tour",
+      "HTMLBody": "\u003c!doctype html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n  \u003cmeta charset=\"utf-8\"\u003e\n  \u003ctitle\u003eWelcome to Acme\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n  \u003ch1\u003eWelcome to Acme!\u003c/h1\u003e\n  \u003cp\u003eHello {{to}},\u003c/p\u003e\n  \u003cp\u003eThank you for joining Acme on {{now}} — this email is part of the \u003cstrong\u003e{{step}}\u003c/strong\u003e step in your onboarding workflow.\u003c/p\u003e\n  \u003cp\u003eQuick links:\n    \u003cul\u003e\n      \u003cli\u003e\u003ca href=\"{{data.login_url}}\"\u003eLog in\u003c/a\u003e\u003c/li\u003e\n      \u003cli\u003e\u003ca href=\"{{data.tour_url}}\"\u003eTry the quickstart tour\u003c/a\u003e\u003c/li\u003e\n    \u003c/ul\u003e\n  \u003c/p\u003e\n  \u003cp\u003e— The Acme Product Team\u003c/p\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n",
       "Attachments": null,
       "ConfigurationSet": "",
       "Tags": {},
@@ -149,17 +181,26 @@
       "BodyTemplatePath": "",
       "AdditionalData": {
         "login_url": "https://app.example/login",
-        "step": "(none)",
+        "name": "nudge",
+        "prev_job_id": "job-b002aa16bc0ab4367ea50e9c",
+        "require_last_success": true,
+        "skip_ahead": true,
+        "step": "nudge",
+        "step_index": 2,
         "tour_url": "https://app.example/tour",
         "workflow_steps": [
           {
             "delay_seconds": 0,
             "name": "welcome",
             "provider_priority": [
-              "smtp"
+              "smtp",
+              "sendgrid"
             ],
+            "require_last_success": false,
             "retry_count": 2,
             "retry_delay_seconds": 5,
+            "skip_ahead": false,
+            "step": "welcome",
             "subject": "Welcome to Acme — Start here"
           },
           {
@@ -167,13 +208,32 @@
             "delay_seconds": 60,
             "name": "followup",
             "provider_priority": [
+              "smtp",
+              "sendgrid"
+            ],
+            "require_last_success": true,
+            "retry_count": 2,
+            "skip_ahead": false,
+            "step": "followup",
+            "subject": "A quick follow-up"
+          },
+          {
+            "body": "We're here if you need support. Tour: https://app.example/tour",
+            "delay_seconds": 3600,
+            "name": "nudge",
+            "provider_priority": [
+              "sendgrid",
               "smtp"
             ],
-            "retry_count": 2,
-            "subject": "A quick follow-up"
+            "require_last_success": true,
+            "retry_count": 1,
+            "skip_ahead": true,
+            "step": "nudge",
+            "subject": "Need any help?"
           }
         ]
       },
+      "ScheduleMode": "",
       "AWSRegion": "",
       "AWSAccessKey": "",
       "AWSSecretKey": "",
@@ -182,23 +242,27 @@
       "UseSSL": false,
       "SkipTLSVerify": false,
       "Timeout": 15000000000,
-      "RetryCount": 2,
+      "RetryCount": 1,
       "RetryDelay": 5000000000,
       "MaxRetryDelay": 0,
       "ProviderPriority": [
+        "sendgrid",
         "smtp"
       ]
     },
-    "run_at": "2025-12-20T16:31:03.821328003Z",
+    "run_at": "2025-12-21T05:20:20.460174Z",
     "attempts": 0,
     "meta": {
-      "name": "followup",
-      "step": "followup",
-      "step_index": 1
+      "name": "nudge",
+      "prev_job_id": "job-b002aa16bc0ab4367ea50e9c",
+      "require_last_success": true,
+      "skip_ahead": true,
+      "step": "nudge",
+      "step_index": 2
     }
   },
   {
-    "id": "job-acb9c6c7e934041625fab48f",
+    "id": "job-9fb4d92751d6ff1427019da0",
     "config": {
       "From": "noreply@acme.example",
       "FromName": "Acme Product Team",
@@ -212,10 +276,10 @@
       "BCC": null,
       "ListUnsubscribe": null,
       "ListUnsubscribePost": false,
-      "Subject": "Welcome to Acme — Start here",
-      "Body": "",
-      "TextBody": "Welcome to Acme!\n\nHello demo@example.org,\n\nThank you for joining Acme on 2025-12-20T22:19:15+05:45 — this email is part of the \"\" step in your onboarding workflow.\n\nQuick links:\n  - Log in: https://app.example/login\n  - Quickstart tour: https://app.example/tour\n\n— The Acme Product Team",
-      "HTMLBody": "\u003c!doctype html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n  \u003cmeta charset=\"utf-8\"\u003e\n  \u003ctitle\u003eWelcome to Acme\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n  \u003ch1\u003eWelcome to Acme!\u003c/h1\u003e\n  \u003cp\u003eHello demo@example.org,\u003c/p\u003e\n  \u003cp\u003eThank you for joining Acme on 2025-12-20T22:19:15+05:45 — this email is part of the \u003cstrong\u003e\u003c/strong\u003e step in your onboarding workflow.\u003c/p\u003e\n  \u003cp\u003eQuick links:\n    \u003cul\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/login\"\u003eLog in\u003c/a\u003e\u003c/li\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/tour\"\u003eTry the quickstart tour\u003c/a\u003e\u003c/li\u003e\n    \u003c/ul\u003e\n  \u003c/p\u003e\n  \u003cp\u003e— The Acme Product Team\u003c/p\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
+      "Subject": "Need any help?",
+      "Body": "We're here if you need support. Tour: https://app.example/tour",
+      "TextBody": "We're here if you need support. Tour: https://app.example/tour",
+      "HTMLBody": "\u003c!doctype html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n  \u003cmeta charset=\"utf-8\"\u003e\n  \u003ctitle\u003eWelcome to Acme\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n  \u003ch1\u003eWelcome to Acme!\u003c/h1\u003e\n  \u003cp\u003eHello {{to}},\u003c/p\u003e\n  \u003cp\u003eThank you for joining Acme on {{now}} — this email is part of the \u003cstrong\u003e{{step}}\u003c/strong\u003e step in your onboarding workflow.\u003c/p\u003e\n  \u003cp\u003eQuick links:\n    \u003cul\u003e\n      \u003cli\u003e\u003ca href=\"{{data.login_url}}\"\u003eLog in\u003c/a\u003e\u003c/li\u003e\n      \u003cli\u003e\u003ca href=\"{{data.tour_url}}\"\u003eTry the quickstart tour\u003c/a\u003e\u003c/li\u003e\n    \u003c/ul\u003e\n  \u003c/p\u003e\n  \u003cp\u003e— The Acme Product Team\u003c/p\u003e\n\u003c/body\u003e\n\u003c/html\u003e\n",
       "Attachments": null,
       "ConfigurationSet": "",
       "Tags": {},
@@ -248,16 +312,26 @@
       "BodyTemplatePath": "",
       "AdditionalData": {
         "login_url": "https://app.example/login",
+        "name": "nudge",
+        "prev_job_id": "job-cf1f5761b46a0b1f96161087",
+        "require_last_success": true,
+        "skip_ahead": true,
+        "step": "nudge",
+        "step_index": 2,
         "tour_url": "https://app.example/tour",
         "workflow_steps": [
           {
             "delay_seconds": 0,
             "name": "welcome",
             "provider_priority": [
-              "smtp"
+              "smtp",
+              "sendgrid"
             ],
+            "require_last_success": false,
             "retry_count": 2,
             "retry_delay_seconds": 5,
+            "skip_ahead": false,
+            "step": "welcome",
             "subject": "Welcome to Acme — Start here"
           },
           {
@@ -265,13 +339,32 @@
             "delay_seconds": 60,
             "name": "followup",
             "provider_priority": [
+              "smtp",
+              "sendgrid"
+            ],
+            "require_last_success": true,
+            "retry_count": 2,
+            "skip_ahead": false,
+            "step": "followup",
+            "subject": "A quick follow-up"
+          },
+          {
+            "body": "We're here if you need support. Tour: https://app.example/tour",
+            "delay_seconds": 3600,
+            "name": "nudge",
+            "provider_priority": [
+              "sendgrid",
               "smtp"
             ],
-            "retry_count": 2,
-            "subject": "A quick follow-up"
+            "require_last_success": true,
+            "retry_count": 1,
+            "skip_ahead": true,
+            "step": "nudge",
+            "subject": "Need any help?"
           }
         ]
       },
+      "ScheduleMode": "repeat",
       "AWSRegion": "",
       "AWSAccessKey": "",
       "AWSSecretKey": "",
@@ -280,313 +373,23 @@
       "UseSSL": false,
       "SkipTLSVerify": false,
       "Timeout": 15000000000,
-      "RetryCount": 2,
+      "RetryCount": 1,
       "RetryDelay": 5000000000,
       "MaxRetryDelay": 0,
       "ProviderPriority": [
+        "sendgrid",
         "smtp"
       ]
     },
-    "run_at": "2025-12-20T16:34:15.347511268Z",
+    "run_at": "2025-12-21T05:22:41.327698Z",
     "attempts": 0,
     "meta": {
-      "name": "welcome",
-      "step": "welcome",
-      "step_index": 0
-    }
-  },
-  {
-    "id": "job-b3c9b3e46ab87aadb83bc9f3",
-    "config": {
-      "From": "noreply@acme.example",
-      "FromName": "Acme Product Team",
-      "EnvelopeFrom": "noreply@acme.example",
-      "ReturnPath": "",
-      "ReplyTo": null,
-      "To": [
-        "demo@example.org"
-      ],
-      "CC": null,
-      "BCC": null,
-      "ListUnsubscribe": null,
-      "ListUnsubscribePost": false,
-      "Subject": "Welcome to Acme — Start here",
-      "Body": "",
-      "TextBody": "Welcome to Acme!\n\nHello demo@example.org,\n\nThank you for joining Acme on 2025-12-20T22:20:09+05:45 — this email is part of the \"\" step in your onboarding workflow.\n\nQuick links:\n  - Log in: https://app.example/login\n  - Quickstart tour: https://app.example/tour\n\n— The Acme Product Team",
-      "HTMLBody": "\u003c!doctype html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n  \u003cmeta charset=\"utf-8\"\u003e\n  \u003ctitle\u003eWelcome to Acme\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n  \u003ch1\u003eWelcome to Acme!\u003c/h1\u003e\n  \u003cp\u003eHello demo@example.org,\u003c/p\u003e\n  \u003cp\u003eThank you for joining Acme on 2025-12-20T22:20:09+05:45 — this email is part of the \u003cstrong\u003e\u003c/strong\u003e step in your onboarding workflow.\u003c/p\u003e\n  \u003cp\u003eQuick links:\n    \u003cul\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/login\"\u003eLog in\u003c/a\u003e\u003c/li\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/tour\"\u003eTry the quickstart tour\u003c/a\u003e\u003c/li\u003e\n    \u003c/ul\u003e\n  \u003c/p\u003e\n  \u003cp\u003e— The Acme Product Team\u003c/p\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
-      "Attachments": null,
-      "ConfigurationSet": "",
-      "Tags": {},
-      "Provider": "[smtp]",
-      "Transport": "smtp",
-      "Host": "localhost",
-      "Port": 1025,
-      "Username": "noreply@acme.example",
-      "Password": "",
-      "APIKey": "",
-      "APIToken": "",
-      "Endpoint": "",
-      "HTTPMethod": "POST",
-      "Headers": {},
-      "QueryParams": {},
-      "HTTPPayload": null,
-      "PayloadFormat": "",
-      "HTTPContentType": "",
-      "HTTPAuth": "",
-      "HTTPAuthHeader": "",
-      "HTTPAuthQuery": "",
-      "HTTPAuthPrefix": "Bearer",
-      "MaxConnsPerHost": 0,
-      "MaxIdleConns": 0,
-      "MaxIdleConnsHost": 0,
-      "DisableKeepAlives": false,
-      "SMTPAuth": "",
-      "HTMLTemplatePath": "templates/pipeline_welcome_mailhog.html",
-      "TextTemplatePath": "templates/pipeline_welcome_mailhog.txt",
-      "BodyTemplatePath": "",
-      "AdditionalData": {
-        "login_url": "https://app.example/login",
-        "tour_url": "https://app.example/tour",
-        "workflow_steps": [
-          {
-            "delay_seconds": 0,
-            "name": "welcome",
-            "provider_priority": [
-              "smtp"
-            ],
-            "retry_count": 2,
-            "retry_delay_seconds": 5,
-            "subject": "Welcome to Acme — Start here"
-          },
-          {
-            "body": "Hi demo@example.org, just checking in to see how things are going. Login: https://app.example/login",
-            "delay_seconds": 60,
-            "name": "followup",
-            "provider_priority": [
-              "smtp"
-            ],
-            "retry_count": 2,
-            "subject": "A quick follow-up"
-          }
-        ]
-      },
-      "AWSRegion": "",
-      "AWSAccessKey": "",
-      "AWSSecretKey": "",
-      "AWSSessionToken": "",
-      "UseTLS": false,
-      "UseSSL": false,
-      "SkipTLSVerify": false,
-      "Timeout": 15000000000,
-      "RetryCount": 2,
-      "RetryDelay": 5000000000,
-      "MaxRetryDelay": 0,
-      "ProviderPriority": [
-        "smtp"
-      ]
-    },
-    "run_at": "2025-12-20T16:35:09.872917332Z",
-    "attempts": 0,
-    "meta": {
-      "name": "welcome",
-      "step": "welcome",
-      "step_index": 0
-    }
-  },
-  {
-    "id": "job-5cf56888333f8cee1a74026c",
-    "config": {
-      "From": "noreply@acme.example",
-      "FromName": "Acme Product Team",
-      "EnvelopeFrom": "noreply@acme.example",
-      "ReturnPath": "",
-      "ReplyTo": null,
-      "To": [
-        "demo@example.org"
-      ],
-      "CC": null,
-      "BCC": null,
-      "ListUnsubscribe": null,
-      "ListUnsubscribePost": false,
-      "Subject": "A quick follow-up",
-      "Body": "Hi demo@example.org, just checking in to see how things are going. Login: https://app.example/login",
-      "TextBody": "Hi demo@example.org, just checking in to see how things are going. Login: https://app.example/login",
-      "HTMLBody": "\u003c!doctype html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n  \u003cmeta charset=\"utf-8\"\u003e\n  \u003ctitle\u003eWelcome to Acme\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n  \u003ch1\u003eWelcome to Acme!\u003c/h1\u003e\n  \u003cp\u003eHello demo@example.org,\u003c/p\u003e\n  \u003cp\u003eThank you for joining Acme on 2025-12-20T22:19:15+05:45 — this email is part of the \u003cstrong\u003e\u003c/strong\u003e step in your onboarding workflow.\u003c/p\u003e\n  \u003cp\u003eQuick links:\n    \u003cul\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/login\"\u003eLog in\u003c/a\u003e\u003c/li\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/tour\"\u003eTry the quickstart tour\u003c/a\u003e\u003c/li\u003e\n    \u003c/ul\u003e\n  \u003c/p\u003e\n  \u003cp\u003e— The Acme Product Team\u003c/p\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
-      "Attachments": null,
-      "ConfigurationSet": "",
-      "Tags": {},
-      "Provider": "[smtp]",
-      "Transport": "smtp",
-      "Host": "localhost",
-      "Port": 1025,
-      "Username": "noreply@acme.example",
-      "Password": "",
-      "APIKey": "",
-      "APIToken": "",
-      "Endpoint": "",
-      "HTTPMethod": "POST",
-      "Headers": {},
-      "QueryParams": {},
-      "HTTPPayload": null,
-      "PayloadFormat": "",
-      "HTTPContentType": "",
-      "HTTPAuth": "",
-      "HTTPAuthHeader": "",
-      "HTTPAuthQuery": "",
-      "HTTPAuthPrefix": "Bearer",
-      "MaxConnsPerHost": 0,
-      "MaxIdleConns": 0,
-      "MaxIdleConnsHost": 0,
-      "DisableKeepAlives": false,
-      "SMTPAuth": "",
-      "HTMLTemplatePath": "templates/pipeline_welcome_mailhog.html",
-      "TextTemplatePath": "templates/pipeline_welcome_mailhog.txt",
-      "BodyTemplatePath": "",
-      "AdditionalData": {
-        "login_url": "https://app.example/login",
-        "tour_url": "https://app.example/tour",
-        "workflow_steps": [
-          {
-            "delay_seconds": 0,
-            "name": "welcome",
-            "provider_priority": [
-              "smtp"
-            ],
-            "retry_count": 2,
-            "retry_delay_seconds": 5,
-            "subject": "Welcome to Acme — Start here"
-          },
-          {
-            "body": "Hi demo@example.org, just checking in to see how things are going. Login: https://app.example/login",
-            "delay_seconds": 60,
-            "name": "followup",
-            "provider_priority": [
-              "smtp"
-            ],
-            "retry_count": 2,
-            "subject": "A quick follow-up"
-          }
-        ]
-      },
-      "AWSRegion": "",
-      "AWSAccessKey": "",
-      "AWSSecretKey": "",
-      "AWSSessionToken": "",
-      "UseTLS": false,
-      "UseSSL": false,
-      "SkipTLSVerify": false,
-      "Timeout": 15000000000,
-      "RetryCount": 2,
-      "RetryDelay": 5000000000,
-      "MaxRetryDelay": 0,
-      "ProviderPriority": [
-        "smtp"
-      ]
-    },
-    "run_at": "2025-12-20T16:35:15.347511268Z",
-    "attempts": 0,
-    "meta": {
-      "name": "followup",
-      "step": "followup",
-      "step_index": 1
-    }
-  },
-  {
-    "id": "job-ae0ebcd437375bda306eac6f",
-    "config": {
-      "From": "noreply@acme.example",
-      "FromName": "Acme Product Team",
-      "EnvelopeFrom": "noreply@acme.example",
-      "ReturnPath": "",
-      "ReplyTo": null,
-      "To": [
-        "demo@example.org"
-      ],
-      "CC": null,
-      "BCC": null,
-      "ListUnsubscribe": null,
-      "ListUnsubscribePost": false,
-      "Subject": "A quick follow-up",
-      "Body": "Hi demo@example.org, just checking in to see how things are going. Login: https://app.example/login",
-      "TextBody": "Hi demo@example.org, just checking in to see how things are going. Login: https://app.example/login",
-      "HTMLBody": "\u003c!doctype html\u003e\n\u003chtml\u003e\n\u003chead\u003e\n  \u003cmeta charset=\"utf-8\"\u003e\n  \u003ctitle\u003eWelcome to Acme\u003c/title\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n  \u003ch1\u003eWelcome to Acme!\u003c/h1\u003e\n  \u003cp\u003eHello demo@example.org,\u003c/p\u003e\n  \u003cp\u003eThank you for joining Acme on 2025-12-20T22:20:09+05:45 — this email is part of the \u003cstrong\u003e\u003c/strong\u003e step in your onboarding workflow.\u003c/p\u003e\n  \u003cp\u003eQuick links:\n    \u003cul\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/login\"\u003eLog in\u003c/a\u003e\u003c/li\u003e\n      \u003cli\u003e\u003ca href=\"https://app.example/tour\"\u003eTry the quickstart tour\u003c/a\u003e\u003c/li\u003e\n    \u003c/ul\u003e\n  \u003c/p\u003e\n  \u003cp\u003e— The Acme Product Team\u003c/p\u003e\n\u003c/body\u003e\n\u003c/html\u003e",
-      "Attachments": null,
-      "ConfigurationSet": "",
-      "Tags": {},
-      "Provider": "[smtp]",
-      "Transport": "smtp",
-      "Host": "localhost",
-      "Port": 1025,
-      "Username": "noreply@acme.example",
-      "Password": "",
-      "APIKey": "",
-      "APIToken": "",
-      "Endpoint": "",
-      "HTTPMethod": "POST",
-      "Headers": {},
-      "QueryParams": {},
-      "HTTPPayload": null,
-      "PayloadFormat": "",
-      "HTTPContentType": "",
-      "HTTPAuth": "",
-      "HTTPAuthHeader": "",
-      "HTTPAuthQuery": "",
-      "HTTPAuthPrefix": "Bearer",
-      "MaxConnsPerHost": 0,
-      "MaxIdleConns": 0,
-      "MaxIdleConnsHost": 0,
-      "DisableKeepAlives": false,
-      "SMTPAuth": "",
-      "HTMLTemplatePath": "templates/pipeline_welcome_mailhog.html",
-      "TextTemplatePath": "templates/pipeline_welcome_mailhog.txt",
-      "BodyTemplatePath": "",
-      "AdditionalData": {
-        "login_url": "https://app.example/login",
-        "tour_url": "https://app.example/tour",
-        "workflow_steps": [
-          {
-            "delay_seconds": 0,
-            "name": "welcome",
-            "provider_priority": [
-              "smtp"
-            ],
-            "retry_count": 2,
-            "retry_delay_seconds": 5,
-            "subject": "Welcome to Acme — Start here"
-          },
-          {
-            "body": "Hi demo@example.org, just checking in to see how things are going. Login: https://app.example/login",
-            "delay_seconds": 60,
-            "name": "followup",
-            "provider_priority": [
-              "smtp"
-            ],
-            "retry_count": 2,
-            "subject": "A quick follow-up"
-          }
-        ]
-      },
-      "AWSRegion": "",
-      "AWSAccessKey": "",
-      "AWSSecretKey": "",
-      "AWSSessionToken": "",
-      "UseTLS": false,
-      "UseSSL": false,
-      "SkipTLSVerify": false,
-      "Timeout": 15000000000,
-      "RetryCount": 2,
-      "RetryDelay": 5000000000,
-      "MaxRetryDelay": 0,
-      "ProviderPriority": [
-        "smtp"
-      ]
-    },
-    "run_at": "2025-12-20T16:36:09.872917332Z",
-    "attempts": 0,
-    "meta": {
-      "name": "followup",
-      "step": "followup",
-      "step_index": 1
+      "name": "nudge",
+      "prev_job_id": "job-cf1f5761b46a0b1f96161087",
+      "require_last_success": true,
+      "skip_ahead": true,
+      "step": "nudge",
+      "step_index": 2
     }
   }
 ]
