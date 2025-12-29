@@ -36,27 +36,41 @@ type httpProviderProfile struct {
 }
 
 var providerDefaults = map[string]ProviderSetting{
-	"gmail":        {Host: "smtp.gmail.com", Port: 587, UseTLS: true},
-	"google":       {Host: "smtp.gmail.com", Port: 587, UseTLS: true},
-	"outlook":      {Host: "smtp-mail.outlook.com", Port: 587, UseTLS: true},
-	"office365":    {Host: "smtp.office365.com", Port: 587, UseTLS: true},
-	"yahoo":        {Host: "smtp.mail.yahoo.com", Port: 587, UseTLS: true},
-	"zoho":         {Host: "smtp.zoho.com", Port: 587, UseTLS: true},
-	"mailtrap":     {Host: "smtp.mailtrap.io", Port: 2525, UseTLS: true},
-	"sendgrid":     {Host: "smtp.sendgrid.net", Port: 587, UseTLS: true},
-	"mailgun":      {Host: "smtp.mailgun.org", Port: 587, UseTLS: true},
-	"postmark":     {Host: "smtp.postmarkapp.com", Port: 587, UseTLS: true},
-	"sparkpost":    {Host: "smtp.sparkpostmail.com", Port: 587, UseTLS: true},
-	"amazon_ses":   {Host: "email-smtp.us-east-1.amazonaws.com", Port: 587, UseTLS: true},
-	"amazon":       {Host: "email-smtp.us-east-1.amazonaws.com", Port: 587, UseTLS: true},
-	"aws_ses":      {Transport: "http", Endpoint: "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails"},
-	"ses":          {Transport: "http", Endpoint: "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails"},
-	"fastmail":     {Host: "smtp.fastmail.com", Port: 465, UseSSL: true},
+	// Traditional SMTP providers
+	"gmail":     {Host: "smtp.gmail.com", Port: 587, UseTLS: true},
+	"google":    {Host: "smtp.gmail.com", Port: 587, UseTLS: true},
+	"outlook":   {Host: "smtp-mail.outlook.com", Port: 587, UseTLS: true},
+	"office365": {Host: "smtp.office365.com", Port: 587, UseTLS: true},
+	"yahoo":     {Host: "smtp.mail.yahoo.com", Port: 587, UseTLS: true},
+	"zoho":      {Host: "smtp.zoho.com", Port: 587, UseTLS: true},
+	"fastmail":  {Host: "smtp.fastmail.com", Port: 465, UseSSL: true},
+
+	// Transactional email services - HTTP API preferred
+	"sendgrid":   {Transport: "http", Endpoint: "https://api.sendgrid.com/v3/mail/send"},
+	"mailgun":    {Transport: "http", Endpoint: "https://api.mailgun.net/v3"},
+	"postmark":   {Transport: "http", Endpoint: "https://api.postmarkapp.com/email"},
+	"sparkpost":  {Transport: "http", Endpoint: "https://api.sparkpost.com/api/v1/transmissions"},
+	"resend":     {Transport: "http", Endpoint: "https://api.resend.com/emails"},
+	"mailtrap":   {Transport: "http", Endpoint: "https://send.api.mailtrap.io/api/send"},
+	"sendinblue": {Transport: "http", Endpoint: "https://api.sendinblue.com/v3/smtp/email"},
+	"brevo":      {Transport: "http", Endpoint: "https://api.brevo.com/v3/smtp/email"},
+	"mailjet":    {Transport: "http", Endpoint: "https://api.mailjet.com/v3.1/send"},
+
+	// AWS SES - HTTP API preferred
+	"amazon_ses": {Transport: "http", Endpoint: "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails"},
+	"amazon":     {Transport: "http", Endpoint: "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails"},
+	"aws_ses":    {Transport: "http", Endpoint: "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails"},
+	"ses":        {Transport: "http", Endpoint: "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails"},
+
+	// Other providers
+	"elasticemail": {Transport: "http", Endpoint: "https://api.elasticemail.com/v2/email/send"},
 	"protonmail":   {Transport: "http", Endpoint: "https://api.protonmail.ch"},
-	"sendinblue":   {Host: "smtp-relay.sendinblue.com", Port: 587, UseTLS: true},
-	"brevo":        {Host: "smtp-relay.brevo.com", Port: 587, UseTLS: true},
-	"mailjet":      {Host: "in-v3.mailjet.com", Port: 587, UseTLS: true},
-	"elasticemail": {Host: "smtp.elasticemail.com", Port: 2525, UseTLS: true},
+	"mailersend":   {Transport: "http", Endpoint: "https://api.mailersend.com/v1/email"},
+	"pepipost":     {Transport: "http", Endpoint: "https://api.pepipost.com/v5/mail/send"},
+	"sendpulse":    {Transport: "http", Endpoint: "https://api.sendpulse.com/smtp/emails"},
+	"mandrill":     {Transport: "http", Endpoint: "https://mandrillapp.com/api/1.0/messages/send.json"},
+	"socketlabs":   {Transport: "http", Endpoint: "https://inject.socketlabs.com/api/v1/email"},
+	"smtp2go":      {Transport: "http", Endpoint: "https://api.smtp2go.com/v3/email/send"},
 }
 
 var httpProviderProfiles = map[string]httpProviderProfile{
@@ -65,6 +79,9 @@ var httpProviderProfiles = map[string]httpProviderProfile{
 		Method:        http.MethodPost,
 		ContentType:   "application/json",
 		PayloadFormat: "sendgrid",
+		Headers: map[string]string{
+			"Authorization": "Bearer ${API_KEY}",
+		},
 	},
 	"ses": {
 		Endpoint:      "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails",
@@ -90,7 +107,8 @@ var httpProviderProfiles = map[string]httpProviderProfile{
 		ContentType:   "application/json",
 		PayloadFormat: "brevo",
 		Headers: map[string]string{
-			"accept": "application/json",
+			"accept":  "application/json",
+			"api-key": "${API_KEY}",
 		},
 	},
 	"sendinblue": {
@@ -99,7 +117,8 @@ var httpProviderProfiles = map[string]httpProviderProfile{
 		ContentType:   "application/json",
 		PayloadFormat: "brevo",
 		Headers: map[string]string{
-			"accept": "application/json",
+			"accept":  "application/json",
+			"api-key": "${API_KEY}",
 		},
 	},
 	"mailtrap": {
@@ -107,46 +126,105 @@ var httpProviderProfiles = map[string]httpProviderProfile{
 		Method:        http.MethodPost,
 		ContentType:   "application/json",
 		PayloadFormat: "mailtrap",
+		Headers: map[string]string{
+			"Api-Token": "${API_KEY}",
+		},
 	},
 	"postmark": {
 		Endpoint:      "https://api.postmarkapp.com/email",
 		Method:        http.MethodPost,
 		ContentType:   "application/json",
 		PayloadFormat: "postmark",
+		Headers: map[string]string{
+			"X-Postmark-Server-Token": "${API_KEY}",
+		},
 	},
 	"sparkpost": {
 		Endpoint:      "https://api.sparkpost.com/api/v1/transmissions",
 		Method:        http.MethodPost,
 		ContentType:   "application/json",
 		PayloadFormat: "sparkpost",
+		Headers: map[string]string{
+			"Authorization": "${API_KEY}",
+		},
 	},
 	"resend": {
 		Endpoint:      "https://api.resend.com/emails",
 		Method:        http.MethodPost,
 		ContentType:   "application/json",
 		PayloadFormat: "resend",
+		Headers: map[string]string{
+			"Authorization": "Bearer ${API_KEY}",
+		},
 	},
 	"mailgun": {
 		Endpoint:      "https://api.mailgun.net/v3",
 		Method:        http.MethodPost,
 		ContentType:   "application/x-www-form-urlencoded",
 		PayloadFormat: "mailgun",
+		Headers: map[string]string{
+			"Authorization": "Basic ${API_KEY}",
+		},
+	},
+	"mailjet": {
+		Endpoint:      "https://api.mailjet.com/v3.1/send",
+		Method:        http.MethodPost,
+		ContentType:   "application/json",
+		PayloadFormat: "mailjet",
+		Headers: map[string]string{
+			"Authorization": "Basic ${API_KEY}",
+		},
+	},
+	"elasticemail": {
+		Endpoint:      "https://api.elasticemail.com/v2/email/send",
+		Method:        http.MethodPost,
+		ContentType:   "application/x-www-form-urlencoded",
+		PayloadFormat: "elasticemail",
+	},
+	"mailersend": {
+		Endpoint:      "https://api.mailersend.com/v1/email",
+		Method:        http.MethodPost,
+		ContentType:   "application/json",
+		PayloadFormat: "mailersend",
+		Headers: map[string]string{
+			"Authorization": "Bearer ${API_KEY}",
+		},
+	},
+	"mandrill": {
+		Endpoint:      "https://mandrillapp.com/api/1.0/messages/send.json",
+		Method:        http.MethodPost,
+		ContentType:   "application/json",
+		PayloadFormat: "mandrill",
+	},
+	"smtp2go": {
+		Endpoint:      "https://api.smtp2go.com/v3/email/send",
+		Method:        http.MethodPost,
+		ContentType:   "application/json",
+		PayloadFormat: "smtp2go",
+		Headers: map[string]string{
+			"X-Smtp2go-Api-Key": "${API_KEY}",
+		},
 	},
 }
 
 var httpPayloadBuilders = map[string]payloadBuilder{
-	"sendgrid":   buildSendGridPayload,
-	"brevo":      buildBrevoPayload,
-	"sendinblue": buildBrevoPayload,
-	"mailtrap":   buildMailtrapPayload,
-	"sesv2":      buildSESPayload,
-	"ses":        buildSESPayload,
-	"aws_ses":    buildSESPayload,
-	"amazon_ses": buildSESPayload,
-	"postmark":   buildPostmarkPayload,
-	"sparkpost":  buildSparkPostPayload,
-	"resend":     buildResendPayload,
-	"mailgun":    buildMailgunPayload,
+	"sendgrid":     buildSendGridPayload,
+	"brevo":        buildBrevoPayload,
+	"sendinblue":   buildBrevoPayload,
+	"mailtrap":     buildMailtrapPayload,
+	"sesv2":        buildSESPayload,
+	"ses":          buildSESPayload,
+	"aws_ses":      buildSESPayload,
+	"amazon_ses":   buildSESPayload,
+	"postmark":     buildPostmarkPayload,
+	"sparkpost":    buildSparkPostPayload,
+	"resend":       buildResendPayload,
+	"mailgun":      buildMailgunPayload,
+	"mailjet":      buildMailjetPayload,
+	"elasticemail": buildElasticEmailPayload,
+	"mailersend":   buildMailerSendPayload,
+	"mandrill":     buildMandrillPayload,
+	"smtp2go":      buildSMTP2GOPayload,
 }
 
 var (
@@ -253,9 +331,13 @@ func buildSendGridPayload(cfg *EmailConfig) (any, string, error) {
 	if len(cfg.BCC) > 0 {
 		personalization["bcc"] = addressMaps(parseAddressList(cfg.BCC), "email", "name")
 	}
+	if cfg.Subject != "" {
+		personalization["subject"] = cfg.Subject
+	}
 
 	fromName, fromEmail := splitAddress(cfg.From)
 	fromEntry := singleAddressMap(simpleAddress{Name: fromName, Email: fromEmail}, "email", "name")
+
 	contents := make([]map[string]string, 0, 2)
 	if cfg.TextBody != "" {
 		contents = append(contents, map[string]string{"type": "text/plain", "value": cfg.TextBody})
@@ -270,12 +352,13 @@ func buildSendGridPayload(cfg *EmailConfig) (any, string, error) {
 	payload := map[string]any{
 		"personalizations": []any{personalization},
 		"from":             fromEntry,
-		"subject":          cfg.Subject,
 		"content":          contents,
 	}
+
 	if reply := firstAddressEntry(cfg.ReplyTo); reply.Email != "" {
 		payload["reply_to"] = singleAddressMap(reply, "email", "name")
 	}
+
 	encoded, err := encodeAllAttachments(cfg)
 	if err != nil {
 		return nil, "", err
@@ -298,6 +381,7 @@ func buildSendGridPayload(cfg *EmailConfig) (any, string, error) {
 		}
 		payload["attachments"] = attachments
 	}
+
 	payload = mergeAdditional(payload, cfg.AdditionalData, true)
 	return payload, "application/json", nil
 }
@@ -309,9 +393,18 @@ func buildMailtrapPayload(cfg *EmailConfig) (any, string, error) {
 		"from":    sender,
 		"to":      addressMaps(parseAddressList(cfg.To), "email", "name"),
 		"subject": cfg.Subject,
-		"text":    fallbackBody(cfg.TextBody),
-		"html":    cfg.HTMLBody,
 	}
+
+	if cfg.TextBody != "" {
+		payload["text"] = cfg.TextBody
+	}
+	if cfg.HTMLBody != "" {
+		payload["html"] = cfg.HTMLBody
+	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		payload["text"] = fallbackBody(cfg.TextBody)
+	}
+
 	if len(cfg.CC) > 0 {
 		payload["cc"] = addressMaps(parseAddressList(cfg.CC), "email", "name")
 	}
@@ -321,14 +414,15 @@ func buildMailtrapPayload(cfg *EmailConfig) (any, string, error) {
 	if reply := firstAddressEntry(cfg.ReplyTo); reply.Email != "" {
 		payload["reply_to"] = singleAddressMap(reply, "email", "name")
 	}
+
 	encoded, err := encodeAllAttachments(cfg)
 	if err != nil {
 		return nil, "", err
 	}
 	if len(encoded) > 0 {
-		attachments := make([]map[string]string, 0, len(encoded))
+		attachments := make([]map[string]any, 0, len(encoded))
 		for _, att := range encoded {
-			entry := map[string]string{
+			entry := map[string]any{
 				"content":  att.Content,
 				"type":     att.MIMEType,
 				"filename": att.Filename,
@@ -343,6 +437,7 @@ func buildMailtrapPayload(cfg *EmailConfig) (any, string, error) {
 		}
 		payload["attachments"] = attachments
 	}
+
 	payload = mergeAdditional(payload, cfg.AdditionalData, true)
 	return payload, "application/json", nil
 }
@@ -351,12 +446,21 @@ func buildBrevoPayload(cfg *EmailConfig) (any, string, error) {
 	fromName, fromEmail := splitAddress(cfg.From)
 	sender := singleAddressMap(simpleAddress{Name: fromName, Email: fromEmail}, "email", "name")
 	payload := map[string]any{
-		"sender":      sender,
-		"to":          addressMaps(parseAddressList(cfg.To), "email", "name"),
-		"subject":     cfg.Subject,
-		"textContent": fallbackBody(cfg.TextBody),
-		"htmlContent": cfg.HTMLBody,
+		"sender":  sender,
+		"to":      addressMaps(parseAddressList(cfg.To), "email", "name"),
+		"subject": cfg.Subject,
 	}
+
+	if cfg.HTMLBody != "" {
+		payload["htmlContent"] = cfg.HTMLBody
+	}
+	if cfg.TextBody != "" {
+		payload["textContent"] = cfg.TextBody
+	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		payload["textContent"] = fallbackBody(cfg.TextBody)
+	}
+
 	if len(cfg.CC) > 0 {
 		payload["cc"] = addressMaps(parseAddressList(cfg.CC), "email", "name")
 	}
@@ -366,27 +470,23 @@ func buildBrevoPayload(cfg *EmailConfig) (any, string, error) {
 	if reply := firstAddressEntry(cfg.ReplyTo); reply.Email != "" {
 		payload["replyTo"] = singleAddressMap(reply, "email", "name")
 	}
+
 	encoded, err := encodeAllAttachments(cfg)
 	if err != nil {
 		return nil, "", err
 	}
 	if len(encoded) > 0 {
-		attachments := make([]map[string]string, 0, len(encoded))
+		attachments := make([]map[string]any, 0, len(encoded))
 		for _, att := range encoded {
-			entry := map[string]string{
+			entry := map[string]any{
 				"name":    att.Filename,
 				"content": att.Content,
-			}
-			if att.Inline {
-				entry["disposition"] = "inline"
-				if att.ContentID != "" {
-					entry["contentId"] = att.ContentID
-				}
 			}
 			attachments = append(attachments, entry)
 		}
 		payload["attachment"] = attachments
 	}
+
 	payload = mergeAdditional(payload, cfg.AdditionalData, true)
 	return payload, "application/json", nil
 }
@@ -446,10 +546,13 @@ func buildPostmarkPayload(cfg *EmailConfig) (any, string, error) {
 		payload["Bcc"] = strings.Join(cfg.BCC, ",")
 	}
 	if cfg.TextBody != "" {
-		payload["TextBody"] = fallbackBody(cfg.TextBody)
+		payload["TextBody"] = cfg.TextBody
 	}
 	if cfg.HTMLBody != "" {
 		payload["HtmlBody"] = cfg.HTMLBody
+	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		payload["TextBody"] = fallbackBody(cfg.TextBody)
 	}
 	if reply := firstAddressEntry(cfg.ReplyTo); reply.Email != "" {
 		payload["ReplyTo"] = reply.Email
@@ -476,13 +579,11 @@ func buildPostmarkPayload(cfg *EmailConfig) (any, string, error) {
 			if att.ContentID != "" {
 				entry["ContentID"] = att.ContentID
 			}
-			if att.Inline {
-				entry["ContentDisposition"] = "inline"
-			}
 			attachments = append(attachments, entry)
 		}
 		payload["Attachments"] = attachments
 	}
+	payload = mergeAdditional(payload, cfg.AdditionalData, true)
 	return payload, "application/json", nil
 }
 
@@ -508,39 +609,43 @@ func buildSparkPostPayload(cfg *EmailConfig) (any, string, error) {
 			attachments = append(attachments, entry)
 		}
 	}
+
+	fromName, fromEmail := splitAddress(cfg.From)
 	content := map[string]any{
-		"from":    map[string]string{"email": cfg.From, "name": cfg.FromName},
+		"from":    map[string]string{"email": fromEmail, "name": fromName},
 		"subject": cfg.Subject,
-		"text":    fallbackBody(cfg.TextBody),
 	}
+
 	if cfg.HTMLBody != "" {
 		content["html"] = cfg.HTMLBody
 	}
+	if cfg.TextBody != "" {
+		content["text"] = cfg.TextBody
+	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		content["text"] = fallbackBody(cfg.TextBody)
+	}
+
 	if len(attachments) > 0 {
 		content["attachments"] = attachments
 	}
 	if len(inlineImages) > 0 {
 		content["inline_images"] = inlineImages
 	}
+
 	recipients := make([]map[string]any, 0, len(cfg.To))
 	for _, addr := range cfg.To {
 		recipients = append(recipients, map[string]any{
 			"address": map[string]string{"email": strings.TrimSpace(addr)},
 		})
 	}
+
 	payload := map[string]any{
 		"recipients": recipients,
 		"content":    content,
 	}
-	if len(cfg.Tags) > 0 {
-		var tags []string
-		for k := range cfg.Tags {
-			tags = append(tags, k)
-		}
-		sort.Strings(tags)
-		payload["metadata"] = cfg.Tags
-		payload["description"] = strings.Join(tags, ",")
-	}
+
+	payload = mergeAdditional(payload, cfg.AdditionalData, true)
 	return payload, "application/json", nil
 }
 
@@ -549,9 +654,18 @@ func buildResendPayload(cfg *EmailConfig) (any, string, error) {
 		"from":    cfg.From,
 		"to":      cfg.To,
 		"subject": cfg.Subject,
-		"text":    fallbackBody(cfg.TextBody),
-		"html":    cfg.HTMLBody,
 	}
+
+	if cfg.HTMLBody != "" {
+		payload["html"] = cfg.HTMLBody
+	}
+	if cfg.TextBody != "" {
+		payload["text"] = cfg.TextBody
+	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		payload["text"] = fallbackBody(cfg.TextBody)
+	}
+
 	if len(cfg.CC) > 0 {
 		payload["cc"] = cfg.CC
 	}
@@ -559,53 +673,55 @@ func buildResendPayload(cfg *EmailConfig) (any, string, error) {
 		payload["bcc"] = cfg.BCC
 	}
 	if reply := firstAddressEntry(cfg.ReplyTo); reply.Email != "" {
-		payload["reply_to"] = []string{reply.Email}
+		payload["reply_to"] = reply.Email
 	}
+
 	encoded, err := encodeAllAttachments(cfg)
 	if err != nil {
 		return nil, "", err
 	}
 	if len(encoded) > 0 {
-		attachments := make([]map[string]string, 0, len(encoded))
+		attachments := make([]map[string]any, 0, len(encoded))
 		for _, att := range encoded {
-			entry := map[string]string{
-				"filename":     att.Filename,
-				"content":      att.Content,
-				"content_type": att.MIMEType,
-			}
-			if att.ContentID != "" {
-				entry["cid"] = att.ContentID
-			}
-			if att.Inline {
-				entry["disposition"] = "inline"
+			entry := map[string]any{
+				"filename": att.Filename,
+				"content":  att.Content,
 			}
 			attachments = append(attachments, entry)
 		}
 		payload["attachments"] = attachments
 	}
+
+	payload = mergeAdditional(payload, cfg.AdditionalData, true)
 	return payload, "application/json", nil
 }
 
 func buildMailgunPayload(cfg *EmailConfig) (any, string, error) {
-	if len(cfg.Attachments) > 0 {
-		return nil, "", errors.New("mailgun http builder does not support attachments; use SMTP or raw payload")
-	}
 	domain := strings.TrimSpace(firstString(cfg.AdditionalData, "domain", "mailgun_domain"))
 	if domain == "" {
 		domain = inferMailgunDomain(cfg.Endpoint)
 	}
 	if domain == "" {
-		return nil, "", errors.New("mailgun domain is required (set 'domain' in payload)")
+		parts := strings.Split(cfg.From, "@")
+		if len(parts) == 2 {
+			domain = parts[1]
+		}
 	}
+	if domain == "" {
+		return nil, "", errors.New("mailgun domain is required (set 'domain' in payload or use from address)")
+	}
+
 	if cfg.Endpoint != "" && !strings.Contains(cfg.Endpoint, "/messages") {
 		cfg.Endpoint = strings.TrimRight(cfg.Endpoint, "/") + "/" + domain + "/messages"
 	}
+
 	form := url.Values{}
 	fromAddr := cfg.From
 	if cfg.FromName != "" {
 		fromAddr = fmt.Sprintf("%s <%s>", cfg.FromName, cfg.From)
 	}
 	form.Set("from", fromAddr)
+
 	for _, to := range cfg.To {
 		form.Add("to", to)
 	}
@@ -618,14 +734,351 @@ func buildMailgunPayload(cfg *EmailConfig) (any, string, error) {
 	if reply := firstAddressEntry(cfg.ReplyTo); reply.Email != "" {
 		form.Set("h:Reply-To", reply.Email)
 	}
+
 	form.Set("subject", cfg.Subject)
 	if cfg.TextBody != "" {
-		form.Set("text", fallbackBody(cfg.TextBody))
+		form.Set("text", cfg.TextBody)
 	}
 	if cfg.HTMLBody != "" {
 		form.Set("html", cfg.HTMLBody)
 	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		form.Set("text", fallbackBody(cfg.TextBody))
+	}
+
 	return form, "application/x-www-form-urlencoded", nil
+}
+
+func buildMailjetPayload(cfg *EmailConfig) (any, string, error) {
+	fromName, fromEmail := splitAddress(cfg.From)
+
+	toList := make([]map[string]string, 0, len(cfg.To))
+	for _, addr := range parseAddressList(cfg.To) {
+		toList = append(toList, map[string]string{"Email": addr.Email, "Name": addr.Name})
+	}
+
+	message := map[string]any{
+		"From": map[string]string{
+			"Email": fromEmail,
+			"Name":  fromName,
+		},
+		"To":      toList,
+		"Subject": cfg.Subject,
+	}
+
+	if cfg.TextBody != "" {
+		message["TextPart"] = cfg.TextBody
+	}
+	if cfg.HTMLBody != "" {
+		message["HTMLPart"] = cfg.HTMLBody
+	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		message["TextPart"] = fallbackBody(cfg.TextBody)
+	}
+
+	if len(cfg.CC) > 0 {
+		ccList := make([]map[string]string, 0, len(cfg.CC))
+		for _, addr := range parseAddressList(cfg.CC) {
+			ccList = append(ccList, map[string]string{"Email": addr.Email, "Name": addr.Name})
+		}
+		message["Cc"] = ccList
+	}
+
+	if len(cfg.BCC) > 0 {
+		bccList := make([]map[string]string, 0, len(cfg.BCC))
+		for _, addr := range parseAddressList(cfg.BCC) {
+			bccList = append(bccList, map[string]string{"Email": addr.Email, "Name": addr.Name})
+		}
+		message["Bcc"] = bccList
+	}
+
+	if reply := firstAddressEntry(cfg.ReplyTo); reply.Email != "" {
+		message["ReplyTo"] = map[string]string{"Email": reply.Email, "Name": reply.Name}
+	}
+
+	encoded, err := encodeAllAttachments(cfg)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(encoded) > 0 {
+		attachments := make([]map[string]string, 0, len(encoded))
+		inlineAttachments := make([]map[string]string, 0)
+
+		for _, att := range encoded {
+			entry := map[string]string{
+				"ContentType":   att.MIMEType,
+				"Filename":      att.Filename,
+				"Base64Content": att.Content,
+			}
+			if att.Inline && att.ContentID != "" {
+				entry["ContentID"] = att.ContentID
+				inlineAttachments = append(inlineAttachments, entry)
+			} else {
+				attachments = append(attachments, entry)
+			}
+		}
+
+		if len(attachments) > 0 {
+			message["Attachments"] = attachments
+		}
+		if len(inlineAttachments) > 0 {
+			message["InlinedAttachments"] = inlineAttachments
+		}
+	}
+
+	payload := map[string]any{
+		"Messages": []any{message},
+	}
+
+	return payload, "application/json", nil
+}
+
+func buildElasticEmailPayload(cfg *EmailConfig) (any, string, error) {
+	form := url.Values{}
+	form.Set("from", cfg.From)
+	form.Set("fromName", cfg.FromName)
+	form.Set("subject", cfg.Subject)
+
+	for _, to := range cfg.To {
+		form.Add("to", to)
+	}
+
+	if cfg.TextBody != "" {
+		form.Set("bodyText", cfg.TextBody)
+	}
+	if cfg.HTMLBody != "" {
+		form.Set("bodyHtml", cfg.HTMLBody)
+	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		form.Set("bodyText", fallbackBody(cfg.TextBody))
+	}
+
+	if len(cfg.CC) > 0 {
+		form.Set("msgCC", strings.Join(cfg.CC, ","))
+	}
+	if len(cfg.BCC) > 0 {
+		form.Set("msgBcc", strings.Join(cfg.BCC, ","))
+	}
+
+	if reply := firstAddressEntry(cfg.ReplyTo); reply.Email != "" {
+		form.Set("replyTo", reply.Email)
+	}
+
+	return form, "application/x-www-form-urlencoded", nil
+}
+
+func buildMailerSendPayload(cfg *EmailConfig) (any, string, error) {
+	fromName, fromEmail := splitAddress(cfg.From)
+
+	toList := make([]map[string]string, 0, len(cfg.To))
+	for _, addr := range parseAddressList(cfg.To) {
+		toList = append(toList, map[string]string{"email": addr.Email, "name": addr.Name})
+	}
+
+	payload := map[string]any{
+		"from": map[string]string{
+			"email": fromEmail,
+			"name":  fromName,
+		},
+		"to":      toList,
+		"subject": cfg.Subject,
+	}
+
+	if cfg.TextBody != "" {
+		payload["text"] = cfg.TextBody
+	}
+	if cfg.HTMLBody != "" {
+		payload["html"] = cfg.HTMLBody
+	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		payload["text"] = fallbackBody(cfg.TextBody)
+	}
+
+	if len(cfg.CC) > 0 {
+		ccList := make([]map[string]string, 0, len(cfg.CC))
+		for _, addr := range parseAddressList(cfg.CC) {
+			ccList = append(ccList, map[string]string{"email": addr.Email, "name": addr.Name})
+		}
+		payload["cc"] = ccList
+	}
+
+	if len(cfg.BCC) > 0 {
+		bccList := make([]map[string]string, 0, len(cfg.BCC))
+		for _, addr := range parseAddressList(cfg.BCC) {
+			bccList = append(bccList, map[string]string{"email": addr.Email, "name": addr.Name})
+		}
+		payload["bcc"] = bccList
+	}
+
+	if reply := firstAddressEntry(cfg.ReplyTo); reply.Email != "" {
+		payload["reply_to"] = map[string]string{"email": reply.Email, "name": reply.Name}
+	}
+
+	encoded, err := encodeAllAttachments(cfg)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(encoded) > 0 {
+		attachments := make([]map[string]any, 0, len(encoded))
+		for _, att := range encoded {
+			entry := map[string]any{
+				"filename": att.Filename,
+				"content":  att.Content,
+			}
+			if att.Inline && att.ContentID != "" {
+				entry["id"] = att.ContentID
+				entry["disposition"] = "inline"
+			}
+			attachments = append(attachments, entry)
+		}
+		payload["attachments"] = attachments
+	}
+
+	payload = mergeAdditional(payload, cfg.AdditionalData, true)
+	return payload, "application/json", nil
+}
+
+func buildMandrillPayload(cfg *EmailConfig) (any, string, error) {
+	fromName, fromEmail := splitAddress(cfg.From)
+
+	toList := make([]map[string]string, 0, len(cfg.To))
+	for _, addr := range parseAddressList(cfg.To) {
+		toList = append(toList, map[string]string{
+			"email": addr.Email,
+			"name":  addr.Name,
+			"type":  "to",
+		})
+	}
+
+	for _, addr := range parseAddressList(cfg.CC) {
+		toList = append(toList, map[string]string{
+			"email": addr.Email,
+			"name":  addr.Name,
+			"type":  "cc",
+		})
+	}
+
+	for _, addr := range parseAddressList(cfg.BCC) {
+		toList = append(toList, map[string]string{
+			"email": addr.Email,
+			"name":  addr.Name,
+			"type":  "bcc",
+		})
+	}
+
+	message := map[string]any{
+		"from_email": fromEmail,
+		"from_name":  fromName,
+		"to":         toList,
+		"subject":    cfg.Subject,
+	}
+
+	if cfg.TextBody != "" {
+		message["text"] = cfg.TextBody
+	}
+	if cfg.HTMLBody != "" {
+		message["html"] = cfg.HTMLBody
+	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		message["text"] = fallbackBody(cfg.TextBody)
+	}
+
+	if reply := firstAddressEntry(cfg.ReplyTo); reply.Email != "" {
+		message["headers"] = map[string]string{"Reply-To": reply.Email}
+	}
+
+	encoded, err := encodeAllAttachments(cfg)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(encoded) > 0 {
+		attachments := make([]map[string]string, 0, len(encoded))
+		images := make([]map[string]string, 0)
+
+		for _, att := range encoded {
+			entry := map[string]string{
+				"type":    att.MIMEType,
+				"name":    att.Filename,
+				"content": att.Content,
+			}
+			if att.Inline {
+				images = append(images, entry)
+			} else {
+				attachments = append(attachments, entry)
+			}
+		}
+
+		if len(attachments) > 0 {
+			message["attachments"] = attachments
+		}
+		if len(images) > 0 {
+			message["images"] = images
+		}
+	}
+
+	apiKey := strings.TrimSpace(firstString(cfg.AdditionalData, "api_key", "mandrill_key"))
+	payload := map[string]any{
+		"key":     apiKey,
+		"message": message,
+	}
+
+	return payload, "application/json", nil
+}
+
+func buildSMTP2GOPayload(cfg *EmailConfig) (any, string, error) {
+	fromName, fromEmail := splitAddress(cfg.From)
+
+	toList := make([]string, 0, len(cfg.To))
+	for _, addr := range cfg.To {
+		toList = append(toList, addr)
+	}
+
+	payload := map[string]any{
+		"sender":  fromEmail,
+		"to":      toList,
+		"subject": cfg.Subject,
+	}
+
+	if fromName != "" {
+		payload["sender_name"] = fromName
+	}
+
+	if cfg.TextBody != "" {
+		payload["text_body"] = cfg.TextBody
+	}
+	if cfg.HTMLBody != "" {
+		payload["html_body"] = cfg.HTMLBody
+	}
+	if cfg.TextBody == "" && cfg.HTMLBody == "" {
+		payload["text_body"] = fallbackBody(cfg.TextBody)
+	}
+
+	if len(cfg.CC) > 0 {
+		payload["cc"] = cfg.CC
+	}
+	if len(cfg.BCC) > 0 {
+		payload["bcc"] = cfg.BCC
+	}
+
+	encoded, err := encodeAllAttachments(cfg)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(encoded) > 0 {
+		attachments := make([]map[string]string, 0, len(encoded))
+		for _, att := range encoded {
+			entry := map[string]string{
+				"filename": att.Filename,
+				"fileblob": att.Content,
+				"mimetype": att.MIMEType,
+			}
+			attachments = append(attachments, entry)
+		}
+		payload["attachments"] = attachments
+	}
+
+	payload = mergeAdditional(payload, cfg.AdditionalData, true)
+	return payload, "application/json", nil
 }
 
 func inferMailgunDomain(endpoint string) string {
