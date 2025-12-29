@@ -1,0 +1,7 @@
+{
+    "step": "welcome",
+    "additional_data": {
+        "login_url": "https://app.example/login",
+        "tour_url": "https://app.example/tour"
+    }
+}

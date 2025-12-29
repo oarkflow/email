@@ -19,6 +19,10 @@ type ProviderSetting struct {
 	UseSSL    bool
 	Transport string
 	Endpoint  string
+	// Capacity is an approximate number of sends the provider can handle in the selection window.
+	Capacity int `json:"capacity"`
+	// Cost is a relative cost metric; higher cost will penalize selection when cost-aware routing is used.
+	Cost float64 `json:"cost"`
 }
 
 type payloadBuilder func(*EmailConfig) (any, string, error)

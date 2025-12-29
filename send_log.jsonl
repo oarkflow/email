@@ -4,3 +4,9 @@
 {"timestamp":"2025-12-21T04:21:25.234765Z","job_id":"job-b002aa16bc0ab4367ea50e9c","step":"followup","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}
 {"timestamp":"2025-12-21T04:22:43.860512Z","job_id":"job-5f2cc3cd55fdee5c226ef0dd","step":"welcome","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}
 {"timestamp":"2025-12-21T04:23:43.881625Z","job_id":"job-cf1f5761b46a0b1f96161087","step":"followup","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}
+{"timestamp":"2025-12-28T17:39:37.50324Z","job_id":"job-9fb4d92751d6ff1427019da0","step":"nudge","attempt":1,"provider":"sendgrid","success":false,"error":"500 Unrecognised command","recipients":["demo@example.org"]}
+{"timestamp":"2025-12-28T17:39:37.505994Z","job_id":"job-f9689d8cffe65341c7e378c4","step":"nudge","attempt":1,"provider":"sendgrid","success":false,"error":"500 Unrecognised command","recipients":["demo@example.org"]}
+{"timestamp":"2025-12-28T17:39:37.506556Z","job_id":"job-54e65d0ee70fe4bf455bd3c2","step":"nudge","attempt":1,"provider":"sendgrid","success":false,"error":"500 Unrecognised command","recipients":["demo@example.org"]}
+{"timestamp":"2025-12-28T17:39:37.529117Z","job_id":"job-f9689d8cffe65341c7e378c4","step":"nudge","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}
+{"timestamp":"2025-12-28T17:39:37.531913Z","job_id":"job-9fb4d92751d6ff1427019da0","step":"nudge","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}
+{"timestamp":"2025-12-28T17:39:37.532801Z","job_id":"job-54e65d0ee70fe4bf455bd3c2","step":"nudge","attempt":1,"provider":"smtp","success":true,"recipients":["demo@example.org"]}

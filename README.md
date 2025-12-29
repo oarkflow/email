@@ -217,3 +217,54 @@ When `type` is set to `http`, the sender can:
 - Provide `headers` and `query_params` maps that also accept placeholders.
 
 Attachments, reply-to lists, and even file paths can use the same placeholder syntax, making it easy to describe templated notifications without touching Go code.
+
+---
+
+## Provider Routing & Selection 🔀
+
+You can define **routes** to conditionally select providers based on the message. Add a top-level `routes` key (array) where each route may include any of:
+
+- `to_domain` / `to_domains`: match recipient domains (e.g. `"gmail.com"`).
+- `from_domain` / `from_domains`: match sender domain.
+- `subject_regex`: a simple regex string to match the subject.
+- `provider_priority`: ordered list of providers to try for matched messages.
+- `provider`: single-provider shortcut when only one is desired.
+- Rate limits: `hourly_limit`, `daily_limit`, `weekly_limit`, `monthly_limit` to avoid overusing a provider.
+- `selection_window`: a duration string (e.g. `"1h"`, `"24h"`) that controls the lookback window used for usage-based provider selection. Defaults to `24h`.
+- `provider_weights`: an object mapping provider names to numeric weights; higher weight penalizes selection (e.g. `{ "sendgrid": 1.5, "smtp": 1.0 }`).
+
+Behavior:
+
+- Global `provider_priority` (on the message) takes precedence.
+- Otherwise, the first matching route whose limits are not exhausted is chosen.
+- If a route lists multiple providers, the system orders them by a score computed from recent usage counts within the `selection_window` and provider weights (score = count * weight). The provider with the lowest score is preferred.
+- When `dry_run` is set true in the config, no actual send is performed; the program logs which providers *would* have been used.
+
+Example route snippet:
+
+```json
+"routes": [
+  {
+    "to_domain": "gmail.com",
+    "provider_priority": ["sendgrid", "smtp"],
+    "selection_window": "1h",
+    "recency_half_life": "1h",
+    "provider_weights": {"sendgrid": 1.2, "smtp": 1.0},
+    "provider_capacities": {"sendgrid": 100, "smtp": 1000},
+    "provider_costs": {"sendgrid": 1.2, "smtp": 1.0},
+    "hourly_limit": 200
+  }
+]
+```
+
+This enables cost-aware and usage-aware routing while preventing accidental overuse of a provider.
+
+---
+
+For local testing with MailHog, use the included `examples/routes_example.json` and set `dry_run` to `false` if you want actual delivery to the local SMTP server. Start MailHog with Docker:
+
+```bash
+docker run --rm -p 1025:1025 -p 8025:8025 mailhog/mailhog
+# then run the example
+go run . examples/routes_example.json
+```

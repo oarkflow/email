@@ -26,6 +26,8 @@ type Scheduler struct {
 	stop     chan struct{}
 	wg       sync.WaitGroup
 	interval time.Duration
+	// Optimizer optionally allocates providers across batch of due jobs.
+	Optimizer SchedulerOptimizer
 }
 
 // NewScheduler creates a scheduler with the provided store and polling interval.
@@ -82,6 +84,11 @@ func (s *Scheduler) runLoop() {
 				log.Printf("scheduler: error listing due jobs: %v", err)
 				continue
 			}
+			// Optionally run optimizer to allocate providers across batch
+			alloc := map[string]string{}
+			if s.Optimizer != nil {
+				alloc = s.Optimizer.AllocateJobs(jobs)
+			}
 			for _, job := range jobs {
 				// execute each job in its own goroutine
 				j := job
@@ -114,6 +121,11 @@ func (s *Scheduler) runLoop() {
 							continue
 						}
 						cfgCopy.AdditionalData[k] = v
+					}
+
+					// If optimizer assigned a provider for this job, apply it to the local config copy
+					if p, ok := alloc[j.ID]; ok && p != "" {
+						cfgCopy.Provider = p
 					}
 
 					if err := sendEmail(&cfgCopy, ctx); err != nil {

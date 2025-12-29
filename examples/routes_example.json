@@ -1,6 +1,6 @@
 {
     "from": "Acme <noreply@acme.example>",
-    "from_name": "Acme Product Team",
+    "to": "user@gmail.com",
     "html_template": "templates/pipeline_welcome_mailhog.html",
     "text_template": "templates/pipeline_welcome_mailhog.txt",
     "type": "smtp",
@@ -8,13 +8,18 @@
     "port": 1025,
     "use_tls": false,
     "use_ssl": false,
-    "provider_priority": [ "smtp" ],
     "routes": [
         {
             "to_domain": "gmail.com",
-            "provider_priority": [ "sendgrid", "smtp" ]
+            "provider_priority": [ "sendgrid", "smtp" ],
+            "hourly_limit": 100,
+            "selection_window": "1h",
+            "provider_weights": { "sendgrid": 1.0, "smtp": 1.0 },
+            "provider_capacities": { "sendgrid": 100, "smtp": 1000 },
+            "provider_costs": { "sendgrid": 1.2, "smtp": 1.0 }
         }
     ],
+    "dry_run": true,
     "retries": 3,
     "retry_delay": "5s",
     "timeout": "15s"

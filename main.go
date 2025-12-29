@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	mrand "math/rand"
 	"net/http"
 	"net/mail"
@@ -93,6 +94,39 @@ type EmailConfig struct {
 	MaxRetryDelay time.Duration
 	// ProviderPriority is an ordered list of provider names to attempt in case of failures.
 	ProviderPriority []string
+	// ProviderRoutes allows conditional routing rules that override provider selection.
+	ProviderRoutes []ProviderRoute `json:"routes"`
+	// DryRun when true prevents actual sends and logs what would be sent.
+	DryRun bool `json:"dry_run"`
+}
+
+// ProviderRoute describes a routing rule to choose providers based on message properties.
+type ProviderRoute struct {
+	// ToDomains matches recipient email domains (e.g. "gmail.com").
+	ToDomains []string `json:"to_domain"`
+	// FromDomains matches sender email domains.
+	FromDomains []string `json:"from_domain"`
+	// SubjectRegex is a (string) regex to match the subject.
+	SubjectRegex string `json:"subject_regex"`
+	// ProviderPriority ordered list to try if this route matches.
+	ProviderPriority []string `json:"provider_priority"`
+	// Provider single provider shortcut (if provider_priority omitted).
+	Provider string `json:"provider"`
+	// Limits (optional) - if >0 enforce restrictions across matching sends.
+	HourlyLimit  int `json:"hourly_limit"`
+	DailyLimit   int `json:"daily_limit"`
+	WeeklyLimit  int `json:"weekly_limit"`
+	MonthlyLimit int `json:"monthly_limit"`
+	// SelectionWindow if provided controls the lookback window for usage-based selection (e.g. "1h", "24h").
+	SelectionWindow time.Duration `json:"selection_window"`
+	// RecencyHalfLife controls exponential decay half-life for recency weighting (e.g. "1h", "6h").
+	RecencyHalfLife time.Duration `json:"recency_half_life"`
+	// ProviderWeights assigns relative cost/weight to providers; higher weight penalizes selection.
+	ProviderWeights map[string]float64 `json:"provider_weights"`
+	// ProviderCapacities optionally override provider capacity per-route.
+	ProviderCapacities map[string]int `json:"provider_capacities"`
+	// ProviderCostOverrides optionally override provider cost per-route.
+	ProviderCostOverrides map[string]float64 `json:"provider_costs"`
 }
 
 // Attachment describes a file to be included with the email.
@@ -395,6 +429,128 @@ func parseConfig(raw map[string]any) (*EmailConfig, error) {
 	cfg.RetryDelay = getDurationField(norm, "retry_delay")
 	cfg.MaxRetryDelay = getDurationField(norm, "max_retry_delay")
 	cfg.ProviderPriority = getStringArrayField(norm, "provider_priority")
+	cfg.DryRun = getBoolField(norm, "dry_run")
+	// Parse routes: an array of route objects or a single object
+	if val, ok := norm.pullValue("routes"); ok && val != nil {
+		switch v := val.(type) {
+		case []any:
+			for _, item := range v {
+				if m := normalizeObject(item); m != nil {
+					r := ProviderRoute{}
+					// support both to_domain and to_domains
+					if td, ok := m["to_domain"]; ok {
+						r.ToDomains = normalizeStringSlice(td)
+					} else if td, ok := m["to_domains"]; ok {
+						r.ToDomains = normalizeStringSlice(td)
+					}
+					if fd, ok := m["from_domain"]; ok {
+						r.FromDomains = normalizeStringSlice(fd)
+					} else if fd, ok := m["from_domains"]; ok {
+						r.FromDomains = normalizeStringSlice(fd)
+					}
+					if s, ok := m["subject_regex"]; ok {
+						r.SubjectRegex = strings.TrimSpace(fmt.Sprint(s))
+					}
+					if p, ok := m["provider_priority"]; ok {
+						r.ProviderPriority = normalizeStringSlice(p)
+					}
+					if p, ok := m["provider"]; ok {
+						r.Provider = strings.ToLower(strings.TrimSpace(fmt.Sprint(p)))
+					}
+					if v, ok := m["hourly_limit"]; ok {
+						r.HourlyLimit = toInt(v)
+					}
+					if v, ok := m["daily_limit"]; ok {
+						r.DailyLimit = toInt(v)
+					}
+					if v, ok := m["weekly_limit"]; ok {
+						r.WeeklyLimit = toInt(v)
+					}
+					if v, ok := m["monthly_limit"]; ok {
+						r.MonthlyLimit = toInt(v)
+					}
+					if v, ok := m["selection_window"]; ok {
+						if s, ok := v.(string); ok {
+							if d, err := time.ParseDuration(s); err == nil {
+								r.SelectionWindow = d
+							}
+						}
+					}
+					if v, ok := m["provider_weights"]; ok {
+						if m2 := normalizeObject(v); m2 != nil {
+							r.ProviderWeights = toFloatMap(m2)
+						}
+					}
+					cfg.ProviderRoutes = append(cfg.ProviderRoutes, r)
+				}
+			}
+		case map[string]any:
+			if m := normalizeObject(v); m != nil {
+				r := ProviderRoute{}
+				if td, ok := m["to_domain"]; ok {
+					r.ToDomains = normalizeStringSlice(td)
+				} else if td, ok := m["to_domains"]; ok {
+					r.ToDomains = normalizeStringSlice(td)
+				}
+				if fd, ok := m["from_domain"]; ok {
+					r.FromDomains = normalizeStringSlice(fd)
+				} else if fd, ok := m["from_domains"]; ok {
+					r.FromDomains = normalizeStringSlice(fd)
+				}
+				if s, ok := m["subject_regex"]; ok {
+					r.SubjectRegex = strings.TrimSpace(fmt.Sprint(s))
+				}
+				if p, ok := m["provider_priority"]; ok {
+					r.ProviderPriority = normalizeStringSlice(p)
+				}
+				if p, ok := m["provider"]; ok {
+					r.Provider = strings.ToLower(strings.TrimSpace(fmt.Sprint(p)))
+				}
+				if v, ok := m["hourly_limit"]; ok {
+					r.HourlyLimit = toInt(v)
+				}
+				if v, ok := m["daily_limit"]; ok {
+					r.DailyLimit = toInt(v)
+				}
+				if v, ok := m["weekly_limit"]; ok {
+					r.WeeklyLimit = toInt(v)
+				}
+				if v, ok := m["monthly_limit"]; ok {
+					r.MonthlyLimit = toInt(v)
+				}
+				if v, ok := m["selection_window"]; ok {
+					if s, ok := v.(string); ok {
+						if d, err := time.ParseDuration(s); err == nil {
+							r.SelectionWindow = d
+						}
+					}
+				}
+				if v, ok := m["recency_half_life"]; ok {
+					if s, ok := v.(string); ok {
+						if d, err := time.ParseDuration(s); err == nil {
+							r.RecencyHalfLife = d
+						}
+					}
+				}
+				if v, ok := m["provider_weights"]; ok {
+					if m2 := normalizeObject(v); m2 != nil {
+						r.ProviderWeights = toFloatMap(m2)
+					}
+				}
+				if v, ok := m["provider_capacities"]; ok {
+					if m2 := normalizeObject(v); m2 != nil {
+						r.ProviderCapacities = toIntMap(m2)
+					}
+				}
+				if v, ok := m["provider_costs"]; ok {
+					if m2 := normalizeObject(v); m2 != nil {
+						r.ProviderCostOverrides = toFloatMap(m2)
+					}
+				}
+				cfg.ProviderRoutes = append(cfg.ProviderRoutes, r)
+			}
+		}
+	}
 	cfg.UseTLS = getBoolField(norm, "use_tls")
 	cfg.UseSSL = getBoolField(norm, "use_ssl")
 	cfg.SkipTLSVerify = getBoolField(norm, "skip_tls_verify")
@@ -838,23 +994,11 @@ func sendEmail(cfg *EmailConfig, ctx *SendContext) error {
 		}
 		return errDeduplicated
 	}
-	// Build the ordered provider list to try.
-	providers := make([]string, 0, len(preparedCfg.ProviderPriority)+1)
-	if len(preparedCfg.ProviderPriority) > 0 {
-		for _, p := range preparedCfg.ProviderPriority {
-			if strings.TrimSpace(p) != "" {
-				providers = append(providers, strings.ToLower(strings.TrimSpace(p)))
-			}
-		}
-	}
-	// If no explicit priority list, fall back to single provider from config (may be empty)
-	if len(providers) == 0 {
-		if preparedCfg.Provider != "" {
-			providers = append(providers, preparedCfg.Provider)
-		} else {
-			// ensure we still try using the configured provider or host
-			providers = append(providers, preparedCfg.Provider)
-		}
+	// Resolve providers using routing rules and fallbacks.
+	providers := resolveProviders(preparedCfg)
+	if preparedCfg.DryRun {
+		log.Printf("dry-run: would send to %v; providers=%v; subject=%q", preparedCfg.To, providers, preparedCfg.Subject)
+		return nil
 	}
 
 	var lastErr error
@@ -894,6 +1038,292 @@ func sendEmail(cfg *EmailConfig, ctx *SendContext) error {
 		log.Printf("provider %s exhausted, trying next provider if any", prov)
 	}
 	return lastErr
+}
+
+// resolveProviders returns the ordered list of providers to try for a given config.
+// Precedence:
+// 1) explicit cfg.ProviderPriority if present
+// 2) first matching route in cfg.ProviderRoutes
+// 3) fallback to cfg.Provider
+func resolveProviders(cfg *EmailConfig) []string {
+	// explicit priority wins, but if multiple providers are listed, allow reordering by usage
+	if len(cfg.ProviderPriority) > 0 {
+		// If there is a matching route that provides selection metadata, prefer route-based ordered selection
+		if r := findFirstMatchingRoute(cfg); r != nil && (len(r.ProviderWeights) > 0 || len(r.ProviderCapacities) > 0 || len(r.ProviderCostOverrides) > 0 || r.SelectionWindow > 0 || r.RecencyHalfLife > 0) {
+			list := append([]string{}, cfg.ProviderPriority...)
+			if len(list) > 1 {
+				ordered := sortProvidersByUsage(list, r.ToDomains, r.SelectionWindow, r.ProviderWeights, r.RecencyHalfLife, r.ProviderCapacities, r.ProviderCostOverrides)
+				return normalizeProviderList(ordered, cfg.Provider)
+			}
+			return normalizeProviderList(list, cfg.Provider)
+		}
+		list := append([]string{}, cfg.ProviderPriority...)
+		if len(list) > 1 {
+			ordered := sortProvidersByUsage(list, nil, 0, nil, 0, nil, nil)
+			return normalizeProviderList(ordered, cfg.Provider)
+		}
+		return normalizeProviderList(list, cfg.Provider)
+	}
+	// evaluate routes in order
+	for _, r := range cfg.ProviderRoutes {
+		if routeMatches(cfg, &r) {
+			// check limits; skip route if exhausted
+			if !routeWithinLimits(&r) {
+				log.Printf("route skipped due to limits: %+v", r)
+				continue
+			}
+			// build list from route.ProviderPriority or route.Provider
+			var list []string
+			if len(r.ProviderPriority) > 0 {
+				list = append(list, r.ProviderPriority...)
+			} else if r.Provider != "" {
+				list = append(list, r.Provider)
+			}
+			// If multiple providers, reorder to prefer least-used providers first (24h window)
+			if len(list) > 1 {
+				ordered := sortProvidersByUsage(list, r.ToDomains, r.SelectionWindow, r.ProviderWeights, r.RecencyHalfLife, r.ProviderCapacities, r.ProviderCostOverrides)
+				return normalizeProviderList(ordered, cfg.Provider)
+			}
+			return normalizeProviderList(list, cfg.Provider)
+		}
+	}
+	// default fall back
+	return normalizeProviderList(nil, cfg.Provider)
+}
+
+func routeMatches(cfg *EmailConfig, r *ProviderRoute) bool {
+	// if route has no conditions, treat as no-match
+	if len(r.ToDomains) == 0 && len(r.FromDomains) == 0 && r.SubjectRegex == "" {
+		return false
+	}
+	// check recipients
+	if len(r.ToDomains) > 0 {
+		for _, to := range cfg.To {
+			_, addr := splitAddress(to)
+			d := extractDomain(addr)
+			for _, t := range r.ToDomains {
+				if strings.EqualFold(strings.TrimSpace(t), d) {
+					return true
+				}
+			}
+		}
+	}
+	// check sender
+	if len(r.FromDomains) > 0 {
+		_, addr := splitAddress(cfg.From)
+		d := extractDomain(addr)
+		for _, f := range r.FromDomains {
+			if strings.EqualFold(strings.TrimSpace(f), d) {
+				return true
+			}
+		}
+	}
+	// check subject regex
+	if r.SubjectRegex != "" {
+		re, err := regexp.Compile(r.SubjectRegex)
+		if err == nil && re.MatchString(cfg.Subject) {
+			return true
+		}
+	}
+	return false
+}
+
+func findFirstMatchingRoute(cfg *EmailConfig) *ProviderRoute {
+	for i := range cfg.ProviderRoutes {
+		r := &cfg.ProviderRoutes[i]
+		if routeMatches(cfg, r) {
+			return r
+		}
+	}
+	return nil
+}
+
+// routeWithinLimits checks whether a route still has capacity according to configured limits.
+// Uses recent successful send counts (filtered by recipient domains when present).
+func routeWithinLimits(r *ProviderRoute) bool {
+	// build provider list for counting; empty means match any provider
+	providers := r.ProviderPriority
+	if len(providers) == 0 && r.Provider != "" {
+		providers = []string{r.Provider}
+	}
+	now := time.Now().UTC()
+	if r.HourlyLimit > 0 {
+		since := now.Add(-1 * time.Hour)
+		cnt, err := countSuccessesSince(providers, since, r.ToDomains)
+		if err == nil && cnt >= r.HourlyLimit {
+			return false
+		}
+	}
+	if r.DailyLimit > 0 {
+		since := now.Add(-24 * time.Hour)
+		cnt, err := countSuccessesSince(providers, since, r.ToDomains)
+		if err == nil && cnt >= r.DailyLimit {
+			return false
+		}
+	}
+	if r.WeeklyLimit > 0 {
+		since := now.Add(-7 * 24 * time.Hour)
+		cnt, err := countSuccessesSince(providers, since, r.ToDomains)
+		if err == nil && cnt >= r.WeeklyLimit {
+			return false
+		}
+	}
+	if r.MonthlyLimit > 0 {
+		since := now.Add(-30 * 24 * time.Hour)
+		cnt, err := countSuccessesSince(providers, since, r.ToDomains)
+		if err == nil && cnt >= r.MonthlyLimit {
+			return false
+		}
+	}
+	return true
+}
+
+func extractDomain(addr string) string {
+	addr = strings.TrimSpace(addr)
+	if idx := strings.LastIndex(addr, "@"); idx >= 0 && idx < len(addr)-1 {
+		return strings.ToLower(strings.TrimSpace(addr[idx+1:]))
+	}
+	return ""
+}
+
+// normalizeProviderList normalizes provider names, removes duplicates and appends fallback provider if needed.
+func normalizeProviderList(list []string, fallback string) []string {
+	out := make([]string, 0)
+	seen := map[string]bool{}
+	for _, p := range list {
+		s := strings.ToLower(strings.TrimSpace(p))
+		if s == "" || seen[s] {
+			continue
+		}
+		out = append(out, s)
+		seen[s] = true
+	}
+	if fallback != "" {
+		s := strings.ToLower(strings.TrimSpace(fallback))
+		if s != "" && !seen[s] {
+			out = append(out, s)
+			seen[s] = true
+		}
+	}
+	// If still empty, return the fallback as possibly empty string (preserve previous behavior)
+	if len(out) == 0 {
+		if fallback != "" {
+			return []string{strings.ToLower(strings.TrimSpace(fallback))}
+		}
+		return []string{fallback}
+	}
+	return out
+}
+
+// sortProvidersByUsage sorts providers by ascending score computed from usage counts in a lookback window.
+// Lower score is preferred. Score = count_in_window * weight (weight defaults to 1.0).
+// toDomains filters recipient domains for counting. If window == 0, defaults to 24h.
+func sortProvidersByUsage(providers []string, toDomains []string, window time.Duration, weights map[string]float64, recencyHalfLife time.Duration, overrideCapacities map[string]int, overrideCosts map[string]float64) []string {
+	if window <= 0 {
+		window = 24 * time.Hour
+	}
+	// determine half-life: use explicit recencyHalfLife, else default to window/4, min 1h
+	half := recencyHalfLife
+	if half <= 0 {
+		half = window / 4
+		if half < time.Hour {
+			half = time.Hour
+		}
+	}
+	now := time.Now().UTC()
+	since := now.Add(-window)
+	// get weighted scores per provider
+	scoresMap, _ := weightedUsageSince(providers, since, toDomains, half)
+	scores := make([]float64, len(providers))
+	for i, p := range providers {
+		s := scoresMap[strings.ToLower(strings.TrimSpace(p))]
+		w := 1.0
+		if weights != nil {
+			if v, ok := weights[strings.ToLower(strings.TrimSpace(p))]; ok && v > 0 {
+				w = v
+			}
+		}
+		// cost and capacity adjustments
+		cost := 1.0
+		cap := 0
+		// route-level overrides take precedence
+		if overrideCosts != nil {
+			if v, ok := overrideCosts[strings.ToLower(strings.TrimSpace(p))]; ok && v > 0 {
+				cost = v
+			}
+		}
+		if overrideCapacities != nil {
+			if v, ok := overrideCapacities[strings.ToLower(strings.TrimSpace(p))]; ok && v > 0 {
+				cap = v
+			}
+		}
+		// fall back to provider defaults
+		if ds, ok := providerDefaults[strings.ToLower(strings.TrimSpace(p))]; ok {
+			if ds.Cost > 0 && cost == 1.0 {
+				cost = ds.Cost
+			}
+			if cap == 0 {
+				cap = ds.Capacity
+			}
+		}
+		capFloat := 1.0
+		if cap > 0 {
+			capFloat = float64(cap)
+		}
+		// final score: lower is better. Adjusted score = (weightedCount * weight * cost) / cap
+		// add small epsilon based on cost to prefer lower cost when counts are equal
+		epsilon := 1e-6 * cost
+		scores[i] = (s*w*cost)/capFloat + epsilon
+		log.Printf("scoring provider=%s weightedCount=%.6f weight=%.3f cost=%.3f cap=%d score=%f", p, s, w, cost, cap, scores[i])
+	}
+	type pair struct {
+		idx   int
+		score float64
+	}
+	pairs := make([]pair, 0, len(providers))
+	for i := range providers {
+		pairs = append(pairs, pair{i, scores[i]})
+	}
+	// stable sort: prefer lower score, tie-break by cost (lower), then capacity (higher), then original index
+	sort.Slice(pairs, func(i, j int) bool {
+		if math.Abs(pairs[i].score-pairs[j].score) < 1e-12 {
+			pi := pairs[i].idx
+			pj := pairs[j].idx
+			piName := strings.ToLower(strings.TrimSpace(providers[pi]))
+			pjName := strings.ToLower(strings.TrimSpace(providers[pj]))
+			// get cost and cap
+			ci := 1.0
+			cj := 1.0
+			capI := 0
+			capJ := 0
+			if ds, ok := providerDefaults[piName]; ok {
+				if ds.Cost > 0 {
+					ci = ds.Cost
+				}
+				capI = ds.Capacity
+				// route overrides handled earlier when computing scores; consider overrides here too
+			}
+			if ds, ok := providerDefaults[pjName]; ok {
+				if ds.Cost > 0 {
+					cj = ds.Cost
+				}
+				capJ = ds.Capacity
+			}
+			if math.Abs(ci-cj) > 1e-9 {
+				return ci < cj
+			}
+			if capI != capJ {
+				return capI > capJ // prefer larger capacity
+			}
+			return pairs[i].idx < pairs[j].idx
+		}
+		return pairs[i].score < pairs[j].score
+	})
+	out := make([]string, 0, len(providers))
+	for _, p := range pairs {
+		out = append(out, providers[p.idx])
+	}
+	return out
 }
 
 // jitterBackoff uses full jitter strategy: random[0, min(maxDelay, base*2^(attempt-1))].
@@ -1218,6 +1648,80 @@ func normalizeStringSlice(val any) []string {
 	default:
 		return []string{strings.TrimSpace(fmt.Sprint(v))}
 	}
+}
+
+func toInt(val any) int {
+	switch v := val.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case string:
+		if i, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			return i
+		}
+		return 0
+	default:
+		return 0
+	}
+}
+
+func toFloatMap(m map[string]any) map[string]float64 {
+	out := map[string]float64{}
+	for k, v := range m {
+		s := strings.ToLower(strings.TrimSpace(k))
+		switch vv := v.(type) {
+		case float64:
+			out[s] = vv
+		case int:
+			out[s] = float64(vv)
+		case int64:
+			out[s] = float64(vv)
+		case string:
+			if f, err := strconv.ParseFloat(strings.TrimSpace(vv), 64); err == nil {
+				out[s] = f
+			} else {
+				out[s] = 1.0
+			}
+		default:
+			if f, err := strconv.ParseFloat(strings.TrimSpace(fmt.Sprint(vv)), 64); err == nil {
+				out[s] = f
+			} else {
+				out[s] = 1.0
+			}
+		}
+	}
+	return out
+}
+
+func toIntMap(m map[string]any) map[string]int {
+	out := map[string]int{}
+	for k, v := range m {
+		s := strings.ToLower(strings.TrimSpace(k))
+		switch vv := v.(type) {
+		case int:
+			out[s] = vv
+		case int64:
+			out[s] = int(vv)
+		case float64:
+			out[s] = int(vv)
+		case string:
+			if i, err := strconv.Atoi(strings.TrimSpace(vv)); err == nil {
+				out[s] = i
+			} else {
+				out[s] = 0
+			}
+		default:
+			if i, err := strconv.Atoi(strings.TrimSpace(fmt.Sprint(vv))); err == nil {
+				out[s] = i
+			} else {
+				out[s] = 0
+			}
+		}
+	}
+	return out
 }
 
 type simpleAddress struct {
