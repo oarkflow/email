@@ -1,8 +1,8 @@
 {
     "from": "Acme <noreply@acme.example>",
     "to": "user@gmail.com",
-    "html_template": "templates/pipeline_welcome_mailhog.html",
-    "text_template": "templates/pipeline_welcome_mailhog.txt",
+    "html_template": "static/templates/pipeline_welcome_mailhog.html",
+    "text_template": "static/templates/pipeline_welcome_mailhog.txt",
     "type": "smtp",
     "host": "localhost",
     "port": 1025,
