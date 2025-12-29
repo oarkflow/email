@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	sendLogFile     = "send_log.jsonl"
-	jobResultDBFile = "send_results.json"
+	sendLogFile     = "logs/send_log.jsonl"
+	jobResultDBFile = "logs/send_results.json"
 )
 
 type JobResult string

@@ -19,7 +19,7 @@
             "provider_costs": { "sendgrid": 1.2, "smtp": 1.0 }
         }
     ],
-    "dry_run": true,
+    "dry_run": false,
     "retries": 3,
     "retry_delay": "5s",
     "timeout": "15s"
