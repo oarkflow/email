@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -111,7 +112,13 @@ func (s *Scheduler) runLoop() {
 								return
 							}
 						} else {
-							log.Printf("scheduler: job %s waiting for dependency %s", j.ID, ctx.PrevJobID)
+							// Previous job hasn't completed yet, reschedule this job for later
+							log.Printf("scheduler: job %s waiting for dependency %s, rescheduling", j.ID, ctx.PrevJobID)
+							// Reschedule for 10 seconds later
+							j.RunAt = time.Now().Add(10 * time.Second)
+							if err := s.store.Update(j); err != nil {
+								log.Printf("scheduler: cannot reschedule job %s: %v", j.ID, err)
+							}
 							return
 						}
 					}
@@ -132,7 +139,7 @@ func (s *Scheduler) runLoop() {
 						if errors.Is(err, errDeduplicated) {
 							log.Printf("scheduler: job %s skipped due to deduplication", j.ID)
 							recordJobResult(j.ID, JobResultSkipped)
-							if err := s.store.Delete(j.ID); err != nil {
+							if err := s.store.Delete(j.ID); err != nil && !os.IsNotExist(err) {
 								log.Printf("scheduler: cannot delete job %s: %v", j.ID, err)
 							}
 							return
@@ -148,7 +155,7 @@ func (s *Scheduler) runLoop() {
 					}
 					recordJobResult(j.ID, JobResultSuccess)
 					// success -> remove job
-					if err := s.store.Delete(j.ID); err != nil {
+					if err := s.store.Delete(j.ID); err != nil && !os.IsNotExist(err) {
 						log.Printf("scheduler: cannot delete job %s: %v", j.ID, err)
 					}
 				}()

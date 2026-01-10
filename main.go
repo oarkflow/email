@@ -307,6 +307,40 @@ func main() {
 		return
 	}
 
+	// Check if this is a workflow (has workflow_steps) and auto-schedule it
+	if def, ok := config.AdditionalData["workflow_steps"]; ok {
+		store := NewFileJobStore(*storePath)
+		s := NewScheduler(store, 5*time.Second)
+		if err := ScheduleGenericWorkflow(s, config, def); err != nil {
+			log.Fatalf("schedule workflow failed: %v", err)
+		}
+		return
+	}
+	if def, ok := config.AdditionalData["workflow_definition"]; ok {
+		store := NewFileJobStore(*storePath)
+		s := NewScheduler(store, 5*time.Second)
+		if err := ScheduleGenericWorkflow(s, config, def); err != nil {
+			log.Fatalf("schedule workflow failed: %v", err)
+		}
+		return
+	}
+	if arr, ok := config.AdditionalData["workflow"].([]any); ok {
+		store := NewFileJobStore(*storePath)
+		s := NewScheduler(store, 5*time.Second)
+		if err := ScheduleGenericWorkflow(s, config, arr); err != nil {
+			log.Fatalf("schedule workflow failed: %v", err)
+		}
+		return
+	}
+	if _, ok := config.AdditionalData["workflow"].(string); ok {
+		store := NewFileJobStore(*storePath)
+		s := NewScheduler(store, 5*time.Second)
+		if err := ScheduleWelcomeWorkflow(s, config); err != nil {
+			log.Fatalf("schedule workflow failed: %v", err)
+		}
+		return
+	}
+
 	log.Printf("Sending email to %v via %s (%s)...", config.To, config.TransportDetails(), config.ProviderOrHost())
 	if err := sendEmail(config, nil); err != nil {
 		if errors.Is(err, errDeduplicated) {

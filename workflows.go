@@ -164,6 +164,9 @@ func ScheduleGenericWorkflow(s *Scheduler, base *EmailConfig, def any) error {
 		requireLast := false
 		if rawReq, ok := stepMap["require_last_success"]; ok {
 			requireLast = normalizeBool(rawReq)
+		} else if lastJobID != "" {
+			// Default to requiring last success for subsequent steps
+			requireLast = true
 		}
 		if requireLast {
 			meta["require_last_success"] = true
